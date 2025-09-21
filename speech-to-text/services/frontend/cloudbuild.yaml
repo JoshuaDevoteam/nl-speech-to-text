@@ -1,0 +1,33 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    dir: "services/frontend"
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        branch_name=$BRANCH_NAME
+        branch=${branch_name//\//-}
+        docker build -t ${_ARTIFACT_REGISTRY_CONTAINERS_URL}/frontend:latest -t ${_ARTIFACT_REGISTRY_CONTAINERS_URL}/frontend:$SHORT_SHA -t ${_ARTIFACT_REGISTRY_CONTAINERS_URL}/frontend:$branch --network=cloudbuild .
+
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: "services/frontend"
+    entrypoint: docker
+    args: [
+      "push",
+      "-a",
+      "${_ARTIFACT_REGISTRY_CONTAINERS_URL}/frontend",
+    ]
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    dir: "services/frontend"
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "frontend"
+      - --image=${_ARTIFACT_REGISTRY_CONTAINERS_URL}/frontend:${SHORT_SHA}
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+
+options:
+  logging: CLOUD_LOGGING_ONLY

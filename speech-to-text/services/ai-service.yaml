@@ -1,0 +1,7 @@
+default_context:
+
+  - name: "service_name"
+    value: "frontend"
+
+  - name: "service_sa"
+    value: "frontend"
