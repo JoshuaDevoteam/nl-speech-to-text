@@ -1,0 +1,108 @@
+# GCP Resource Manager module
+
+This module manages the objects related to Google Cloud Resource Manager.
+
+There are two versions of the module: **basic** and **advanced**.
+
+The **basic version** will manage Folders, Projects and API's within projects.
+
+The **advanced** version will have all the features of the basic version, and additionally manages Policies at the Org,
+Folder and Project level.
+
+| Feature               |  Basic  |  Advanced  |
+|-----------------------|:-------:|:----------:|
+| Folders               |    x    |     x      |
+| Projects              |    x    |     x      |
+| Organization Policies |         |     x      |
+| Folder Policies       |         |     x      |
+| Project Policies      |         |     x      |
+
+## Required Permissions
+
+Depending on whether you're deploying the basic or advanced version, the Service Account needs specific IAM grants on
+the GPC Organization.
+These should be granted using the IAM module of the Cloud Foundations repository, an example can be
+found [here](https://github.com/devoteamgcloud/tf-gcp-foundation-samples-iam/blob/e038af4db3316f3599e3cc2d8e3382ff97cb3aeb/iam-advanced-admin/sample.auto.tfvars#L148).
+
+| IAM Role                             |  Basic  |  Advanced  |
+|--------------------------------------|:-------:|:----------:|
+| roles/resourcemanager.folderAdmin    |    x    |     x      |
+| roles/resourcemanager.projectCreator |    x    |     x      |
+| roles/resourcemanager.projectMover   |    x    |     x      |
+| roles/orgpolicy.policyAdmin          |         |     x      |
+| roles/serviceusage.serviceUsageAdmin |         |     x      |
+
+### IAM roles
+
+The IAM admin module on the Basic level must have already run, so that the Service Account (SA) has been created.
+When using the basic package, access to resource creation roles needs to be given to the SA manually, as it doesn't have org IAM access.
+This can be done through the console, or by following the extra steps for basic package below.
+
+When using the Advanced module, the Service Account and the Organization-level IAM bindings should have been created
+so that the admins can retrieve a key for the Service Account.
+
+### Terraform state bucket
+
+If using the basic package and storing your state in GCS buckets, you will need to create a new bucket in the same way as how you created one for the IAM module. In that case, follow the extra steps for basic package below.
+
+If using the advanced package, the IAM admin module could already have been used to create a GCS
+bucket for the terraform state of this module, and given the related SA access to write to the bucket.
+
+## Setup
+
+### 1. Variables
+
+Replace the below variables accordingly. To retrieve *Organization ID* using the command below. This command will show a
+table with all domains where your user account has access on. The *Organization ID* is the `ID` column. It's required
+in `.tfvars` of the both the Basic and Advanced module, as well as in Step 3 below for the Basic module.
+
+```shell
+gcloud organizations list
+```
+
+**Replace all exported variables accordingly.**
+
+```shell
+export TF_SA_RM="sa-cf-tf-basic-rm@pj-cf-basic-terraform-master.iam.gserviceaccount.com"
+export BILLING_ACCOUNT="000634-BA49B6-590F1D"
+```
+
+### 2. Download the key for the SA
+
+Only needed if not using another method to authenticate.
+```shell
+gcloud iam service-accounts keys create resources/key.json --iam-account=$TF_SA_RM
+```
+
+### 3. Grant the Service Account that will create projects access on the Billing Account
+
+```shell
+gcloud beta billing accounts add-iam-policy-binding $BILLING_ACCOUNT \
+ --member="serviceAccount:$TF_SA_RM" \
+ --role="roles/billing.user"
+```
+
+### 4. [BASIC ONLY] Extra steps
+
+To grant the service account created by the IAM module the necessary organization level access, use following commands.
+**Replace all exported variables accordingly.**
+
+```shell
+export ORG_ID=132905988165
+export PROJECT_ID=pj-cf-basic-terraform-master
+export TF_ROOT_STATE_BUCKET_RM=cf-basic-rm-tf-state
+
+gcloud storage buckets create gs://$TF_ROOT_STATE_BUCKET_RM --location EU --project $PROJECT_ID
+gcloud storage buckets update gs://$TF_ROOT_STATE_BUCKET_RM --versioning
+gcloud storage buckets add-iam-policy-binding gs://$TF_ROOT_STATE_BUCKET_RM --member="serviceAccount:${TF_SA_RM}" --role="roles/storage.objectAdmin"
+
+gcloud organizations add-iam-policy-binding $ORG_ID \
+--member="serviceAccount:$TF_SA_RM" \
+--role="roles/resourcemanager.folderAdmin"
+
+gcloud organizations add-iam-policy-binding $ORG_ID \
+--member="serviceAccount:$TF_SA_RM" \
+--role="roles/resourcemanager.projectCreator"
+```
+
+An example .tfvars file can be found here: [sample implementation](https://github.com/devoteamgcloud/tf-gcp-foundation-samples-resource-manager/blob/main/advanced/sample.auto.tfvars)

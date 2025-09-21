@@ -1,0 +1,3 @@
+bucket  = "gcs-tf-state-pj-speech-text-uat"
+prefix  = "static.tfstate.d"
+impersonate_service_account = "sa-terraform@pj-speech-text-uat.iam.gserviceaccount.com"

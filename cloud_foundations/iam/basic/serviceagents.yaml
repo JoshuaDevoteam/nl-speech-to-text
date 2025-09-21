@@ -1,0 +1,842 @@
+version: "1.0"
+data:
+  - api: compute.googleapis.com
+    email: ${PROJECT_NUMBER}@cloudservices.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/compute.googleapis.com
+    name: Run internal Google processes
+    roles:
+      - roles/editor
+  - api: aiplatform.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-aiplatform-cc.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/aiplatform.googleapis.com
+    name: AI Platform Custom Code Service Agent
+    roles:
+      - roles/aiplatform.customCodeServiceAgent
+  - api: aiplatform.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-aiplatform.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/aiplatform.googleapis.com
+    name: AI Platform Service Agent
+    roles:
+      - roles/aiplatform.serviceAgent
+  - api: meshconfig.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-meshcontrolplane.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/meshconfig.googleapis.com
+    name: ASM Mesh Control Plane Service Account
+    roles:
+      - roles/meshcontrolplane.serviceAgent
+  - api: meshconfig.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-meshdataplane.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/meshconfig.googleapis.com
+    name: ASM Mesh Data Plane Service Account
+    roles:
+      - roles/meshdataplane.serviceAgent
+  - api: alloydb.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-alloydb.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/alloydb.googleapis.com
+    name: AlloyDB Service Account
+    roles:
+      - roles/alloydb.serviceAgent
+  - api: anthosaudit.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-anthosaudit.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/anthosaudit.googleapis.com
+    name: Anthos Audit Service Account
+    roles:
+      - roles/anthosaudit.serviceAgent
+  - api: anthosconfigmanagement.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-anthosconfigmanagement.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/anthosconfigmanagement.googleapis.com
+    name: Anthos Config Management Service Account
+    roles:
+      - roles/anthosconfigmanagement.serviceAgent
+  - api: anthosidentityservice.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-anthosidentityservice.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/anthosidentityservice.googleapis.com
+    name: Anthos Identity Service Account
+    roles:
+      - roles/anthosidentityservice.serviceAgent
+  - api: gkemulticloud.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-gkemulticloud.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/gkemulticloud.googleapis.com
+    name: Anthos Multi-Cloud Service Agent
+    roles:
+      - roles/gkemulticloud.serviceAgent
+  - api: anthos.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-anthos.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/anthos.googleapis.com
+    name: Anthos Service Account
+    roles:
+      - roles/anthos.serviceAgent
+  - api: meshconfig.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-servicemesh.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/meshconfig.googleapis.com
+    name: Anthos Service Mesh Service Account
+    roles:
+      - roles/anthosservicemesh.serviceAgent
+  - api: connectgateway.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-anthossupport.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/connectgateway.googleapis.com
+    name: Anthos Support Service Account
+    roles:
+      - roles/anthossupport.serviceAgent
+  - api: apigee.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-apigee.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/apigee.googleapis.com
+    name: Apigee Service Agent
+    roles:
+      - roles/apigee.serviceAgent
+  - api: appdevelopmentexperience.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-appdevexperience.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/appdevelopmentexperience.googleapis.com
+    name: App Development Experience Service Account
+    roles:
+      - roles/appdevelopmentexperience.serviceAgent
+  - api: appengineflex.googleapis.com
+    email: service-${PROJECT_NUMBER}@gae-api-prod.google.com.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/appengineflex.googleapis.com
+    name: App Engine Flexible Environment Service Agent
+    roles:
+      - roles/appengineflex.serviceAgent
+  - api: appenginestandard.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-gae-service.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/appenginestandard.googleapis.com
+    name: App Engine Standard Environment Service Agent
+    roles:
+      - roles/appengine.serviceAgent
+  - api: integrations.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-integrations.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/integrations.googleapis.com
+    name: Application Integration Service Agent
+    roles:
+      - roles/integrations.serviceAgent
+  - api: artifactregistry.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-artifactregistry.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/artifactregistry.googleapis.com
+    name: Artifact Registry Service Agent
+    roles:
+      - roles/artifactregistry.serviceAgent
+  - api: assuredworkloads.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-assuredworkloads.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/assuredworkloads.googleapis.com
+    name: AssuredWorkloads Service Account
+    roles:
+      - roles/assuredworkloads.serviceAgent
+  - api: recommendationengine.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-recommendationengine.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/recommendationengine.googleapis.com
+    name: AutoML Recommendations Service Account
+    roles:
+      - roles/automlrecommendations.serviceAgent
+  - api: automl.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-automl.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/automl.googleapis.com
+    name: AutoML Service Agent
+    roles:
+      - roles/automl.serviceAgent
+  - api: gkebackup.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-gkebackup.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/gkebackup.googleapis.com
+    name: Backup for GKE Service Account
+    roles:
+      - roles/gkebackup.serviceAgent
+  - api: baremetalsolution.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-bms.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/baremetalsolution.googleapis.com
+    name: Bare Metal Solution Service Account
+    roles:
+      - roles/baremetalsolution.serviceAgent
+  - api: batch.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudbatch.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/batch.googleapis.com
+    name: Batch Service Account
+    roles:
+      - roles/batch.serviceAgent
+  - api: bigqueryconnection.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-bigqueryconnection.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/bigqueryconnection.googleapis.com
+    name: BigQuery Connection Service Agent
+    roles:
+      - roles/bigqueryconnection.serviceAgent
+  - api: bigquerydatatransfer.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/bigquerydatatransfer.googleapis.com
+    name: BigQuery Data Transfer Service Agent
+    roles:
+      - roles/bigquerydatatransfer.serviceAgent
+  - api: bigquery.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-prod-bigqueryomni.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/bigquery.googleapis.com
+    name: BigQuery Omni Service Agent
+    roles:
+      - roles/bigqueryomni.serviceAgent
+  - api: binaryauthorization.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-binaryauthorization.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/binaryauthorization.googleapis.com
+    name: Binary Authorization Service Agent
+    roles:
+      - roles/binaryauthorization.serviceAgent
+  - api: chronicle.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-chronicle.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/chronicle.googleapis.com
+    name: Chronicle Service Account
+    roles:
+      - roles/chronicle.serviceAgent
+  - api: notebooks.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-notebooks.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/notebooks.googleapis.com
+    name: Cloud AI Platform Notebooks Service Account
+    roles:
+      - roles/notebooks.serviceAgent
+  - api: apigateway.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-apigateway-mgmt.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/apigateway.googleapis.com
+    name: Cloud API Gateway Management Plane Service Account
+    roles:
+      - roles/apigateway_management.serviceAgent
+  - api: apigateway.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-apigateway.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/apigateway.googleapis.com
+    name: Cloud API Gateway Service Account
+    roles:
+      - roles/apigateway.serviceAgent
+  - api: cloudasset.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudasset.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudasset.googleapis.com
+    name: Cloud Asset Service Agent
+    roles:
+      - roles/cloudasset.serviceAgent
+  - api: cloudbuild.googleapis.com
+    email: ${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudbuild.googleapis.com
+    name: Cloud Build Service Agent
+    roles:
+      - roles/cloudbuild.builds.builder
+  - api: cloudbuild.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudbuild.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudbuild.googleapis.com
+    name: Cloud Build Service Agent
+    roles:
+      - roles/cloudbuild.serviceAgent
+  - api: certificatemanager.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-certificatemanager.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/certificatemanager.googleapis.com
+    name: Cloud Certificate Manager Service Account
+    roles:
+      - roles/certificatemanager.serviceAgent
+  - api: composer.googleapis.com
+    email: service-${PROJECT_NUMBER}@cloudcomposer-accounts.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/composer.googleapis.com
+    name: Cloud Composer Service Agent
+    roles:
+      - roles/composer.serviceAgent
+  - api: config.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-config.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/config.googleapis.com
+    name: Cloud Config Manager Service Account
+    roles:
+      - roles/cloudconfig.serviceAgent
+  - api: datafusion.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-datafusion.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/datafusion.googleapis.com
+    name: Cloud Data Fusion Service Account
+    roles:
+      - roles/datafusion.serviceAgent
+  - api: dlp.googleapis.com
+    email: service-${PROJECT_NUMBER}@dlp-api.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dlp.googleapis.com
+    name: Cloud Data Loss Prevention Service Agent
+    roles:
+      - roles/dlp.serviceAgent
+  - api: datastream.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-datastream.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/datastream.googleapis.com
+    name: Cloud DataStream Service Account
+    roles:
+      - roles/datastream.serviceAgent
+  - api: datamigration.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-datamigration.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/datamigration.googleapis.com
+    name: Cloud Database Migration Service Account
+    roles:
+      - roles/datamigration.serviceAgent
+  - api: dataflow.googleapis.com
+    email: service-${PROJECT_NUMBER}@dataflow-service-producer-prod.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dataflow.googleapis.com
+    name: Cloud Dataflow Service Account
+    roles:
+      - roles/dataflow.serviceAgent
+  - api: dataplex.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-dataplex.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dataplex.googleapis.com
+    name: Cloud Dataplex Service Account
+    roles:
+      - roles/dataplex.serviceAgent
+  - api: clouddeploy.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-clouddeploy.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/clouddeploy.googleapis.com
+    name: Cloud Deploy Service Account
+    roles:
+      - roles/clouddeploy.serviceAgent
+  - api: endpoints.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-endpoints.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/endpoints.googleapis.com
+    name: Cloud Endpoints Service Agent
+    roles:
+      - roles/endpoints.serviceAgent
+  - api: file.googleapis.com
+    email: service-${PROJECT_NUMBER}@cloud-filer.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/file.googleapis.com
+    name: Cloud File Storage Service Account
+    roles:
+      - roles/file.serviceAgent
+  - api: firestore.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firestore.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firestore.googleapis.com
+    name: Cloud Firestore Service Agent
+    roles:
+      - roles/firestore.serviceAgent
+  - api: healthcare.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-healthcare.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/healthcare.googleapis.com
+    name: Cloud Healthcare Service Agent
+    roles:
+      - roles/healthcare.serviceAgent
+  - api: identitytoolkit.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-identitytoolkit.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/identitytoolkit.googleapis.com
+    name: Cloud Identity Platform Service Agent
+    roles:
+      - roles/identitytoolkit.serviceAgent
+  - api: cloudiot.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudiot.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudiot.googleapis.com
+    name: Cloud IoT Core Service Agent
+    roles:
+      - roles/cloudiot.serviceAgent
+  - api: cloudkms.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudkms.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudkms.googleapis.com
+    name: Cloud KMS Service Agent
+    roles:
+      - roles/cloudkms.serviceAgent
+  - api: lifesciences.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-lifesciences.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/lifesciences.googleapis.com
+    name: Cloud Life Sciences Service Agent
+    roles:
+      - roles/lifesciences.serviceAgent
+  - api: logging.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-logging.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/logging.googleapis.com
+    name: Cloud Logging Service Account
+    roles:
+      - roles/logging.serviceAgent
+  - api: managedidentities.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-mi.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/managedidentities.googleapis.com
+    name: Cloud Managed Identities Service Agent
+    roles:
+      - roles/managedidentities.serviceAgent
+  - api: memcache.googleapis.com
+    email: service-${PROJECT_NUMBER}@cloud-memcache-sa.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/memcache.googleapis.com
+    name: Cloud Memorystore Memcache Service Agent
+    roles:
+      - roles/memcache.serviceAgent
+  - api: redis.googleapis.com
+    email: service-${PROJECT_NUMBER}@cloud-redis.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/redis.googleapis.com
+    name: Cloud Memorystore Redis Service Agent
+    roles:
+      - roles/redis.serviceAgent
+  - api: migrationcenter.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-migcenter.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/migrationcenter.googleapis.com
+    name: Cloud Migration Center Service Account
+    roles:
+      - roles/migrationcenter.serviceAgent
+  - api: networkmanagement.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-networkmanagement.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/networkmanagement.googleapis.com
+    name: Cloud Network Management Service Account
+    roles:
+      - roles/networkmanagement.serviceAgent
+  - api: cloudoptimization.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudoptim.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudoptimization.googleapis.com
+    name: Cloud Optimization Service Agent
+    roles:
+      - roles/cloudoptimization.serviceAgent
+  - api: pubsub.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/pubsub.googleapis.com
+    name: Cloud Pub/Sub Service Account
+    roles:
+      - roles/pubsub.serviceAgent
+  - api: sqladmin.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloud-sql.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/sqladmin.googleapis.com
+    name: Cloud SQL Service Account
+    roles:
+      - roles/cloudsql.serviceAgent
+  - api: cloudscheduler.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudscheduler.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudscheduler.googleapis.com
+    name: Cloud Scheduler Service Account
+    roles:
+      - roles/cloudscheduler.serviceAgent
+  - api: securitycenter.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-scc-notification.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/securitycenter.googleapis.com
+    name: Cloud Security Command Center Notification Service Account
+    roles:
+      - roles/securitycenter.notificationServiceAgent
+  - api: sourcerepo.googleapis.com
+    email: service-${PROJECT_NUMBER}@sourcerepo-service-accounts.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/sourcerepo.googleapis.com
+    name: Cloud Source Repositories Service Agent
+    roles:
+      - roles/sourcerepo.serviceAgent
+  - api: firebasestorage.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firebasestorage.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firebasestorage.googleapis.com
+    name: Cloud Storage for Firebase Service Agent
+    roles:
+      - roles/firebasestorage.serviceAgent
+  - api: cloudtasks.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloudtasks.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudtasks.googleapis.com
+    name: Cloud Tasks Service Account
+    roles:
+      - roles/cloudtasks.serviceAgent
+  - api: translate.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-translation.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/translate.googleapis.com
+    name: Cloud Translation Service Agent
+    roles:
+      - roles/cloudtranslate.serviceAgent
+  - api: vmmigration.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-vmmigration.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/vmmigration.googleapis.com
+    name: Cloud VM Migration Service Account
+    roles:
+      - roles/vmmigration.serviceAgent
+  - api: websecurityscanner.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-websecurityscanner.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/websecurityscanner.googleapis.com
+    name: Cloud Web Security Scanner Service Agent
+    roles:
+      - roles/websecurityscanner.serviceAgent
+  - api: workflows.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-workflows.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/workflows.googleapis.com
+    name: Cloud Workflows Service Agent
+    roles:
+      - roles/workflows.serviceAgent
+  - api: compute.googleapis.com
+    email: service-${PROJECT_NUMBER}@compute-system.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/compute.googleapis.com
+    name: Compute Engine Service Agent
+    roles:
+      - roles/compute.serviceAgent
+  - api: connectors.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-connectors.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/connectors.googleapis.com
+    name: Connectors Service Account
+    roles:
+      - roles/connectors.serviceAgent
+  - api: contactcenterinsights.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-contactcenterinsights.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/contactcenterinsights.googleapis.com
+    name: Contact Center AI Insights Service Account
+    roles:
+      - roles/contactcenterinsights.serviceAgent
+  - api: containeranalysis.googleapis.com
+    email: service-${PROJECT_NUMBER}@container-analysis.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/containeranalysis.googleapis.com
+    name: Container Analysis Service Agent
+    roles:
+      - roles/containeranalysis.ServiceAgent
+  - api: containerscanning.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-containerscanning.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/containerscanning.googleapis.com
+    name: Container Scanning Service Agent
+    roles:
+      - roles/containerscanning.ServiceAgent
+  - api: containerthreatdetection.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-ktd-control.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/containerthreatdetection.googleapis.com
+    name: Container Threat Detection Service Agent
+    roles:
+      - roles/containerthreatdetection.serviceAgent
+  - api: contentwarehouse.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloud-cw.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/contentwarehouse.googleapis.com
+    name: Content Warehouse Service Account
+    roles:
+      - roles/contentwarehouse.serviceAgent
+  - api: dataconnectors.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-dataconnectors.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dataconnectors.googleapis.com
+    name: Data Connectors Service Account
+    roles:
+      - roles/dataconnectors.serviceAgent
+  - api: datalabeling.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-datalabeling.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/datalabeling.googleapis.com
+    name: Data Labeling Service Account
+    roles:
+      - roles/datalabeling.serviceAgent
+  - api: datapipelines.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-datapipelines.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/datapipelines.googleapis.com
+    name: Data Pipelines Service Agent
+    roles:
+      - roles/datapipelines.serviceAgent
+  - api: datastudio.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-datastudio.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/datastudio.googleapis.com
+    name: Data Studio Service Account
+    roles:
+      - roles/datastudio.serviceAgent
+  - api: dataform.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-dataform.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dataform.googleapis.com
+    name: Dataform Service Account
+    roles:
+      - roles/dataform.serviceAgent
+  - api: metastore.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-metastore.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/metastore.googleapis.com
+    name: Dataproc Metastore Service Account
+    roles:
+      - roles/metastore.serviceAgent
+  - api: dialogflow.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-dialogflow.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dialogflow.googleapis.com
+    name: Dialogflow Service Agent
+    roles:
+      - roles/dialogflow.serviceAgent
+  - api: discoveryengine.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-discoveryengine.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/discoveryengine.googleapis.com
+    name: Discovery Engine Service Account
+    roles:
+      - roles/discoveryengine.serviceAgent
+  - api: documentai.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-prod-dai-core.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/documentai.googleapis.com
+    name: DocumentAI Core Service Agent
+    roles:
+      - roles/documentaicore.serviceAgent
+  - api: edgecontainer.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-edgecontainer.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/edgecontainer.googleapis.com
+    name: Edge Container Service Agent
+    roles:
+      - roles/edgecontainer.serviceAgent
+  - api: endpointsportal.googleapis.com
+    email: service-${PROJECT_NUMBER}@endpoints-portal.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/endpointsportal.googleapis.com
+    name: Endpoints Consumer Portal Service Agent
+    roles:
+      - roles/endpointsportal.serviceAgent
+  - api: enterpriseknowledgegraph.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-cloud-ekg.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/enterpriseknowledgegraph.googleapis.com
+    name: Enterprise Knowledge Graph Service Agent
+    roles:
+      - roles/enterpriseknowledgegraph.serviceAgent
+  - api: eventarc.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-eventarc.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/eventarc.googleapis.com
+    name: Eventarc Service Agent
+    roles:
+      - roles/eventarc.serviceAgent
+  - api: firebaseappcheck.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firebaseappcheck.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firebaseappcheck.googleapis.com
+    name: Firebase App Check Service Account
+    roles:
+      - roles/firebaseappcheck.serviceAgent
+  - api: firebaseextensions.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firebasemods.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firebaseextensions.googleapis.com
+    name: Firebase Extensions Service Agent
+    roles:
+      - roles/firebasemods.serviceAgent
+  - api: firebase.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firebase.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firebase.googleapis.com
+    name: Firebase Management Service Agent
+    roles:
+      - roles/firebase.managementServiceAgent
+  - api: firebasedatabase.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firebasedatabase.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firebasedatabase.googleapis.com
+    name: Firebase Realtime Database Service Agent
+    roles:
+      - roles/firebasedatabase.serviceAgent
+  - api: firebaserules.googleapis.com
+    email: service-${PROJECT_NUMBER}@firebase-rules.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firebaserules.googleapis.com
+    name: Firebase Rules Service Agent
+    roles:
+      - roles/firebaserules.system
+  - api: firewallinsights.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-firewallinsights.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/firewallinsights.googleapis.com
+    name: Firewall Insights Service Account
+    roles:
+      - roles/firewallinsights.serviceAgent
+  - api: workloadcertificate.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-workloadcert.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/workloadcertificate.googleapis.com
+    name: GCP Workload Certificate Service Account
+    roles:
+      - roles/workloadcertificate.serviceAgent
+  - api: gkehub.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-gkehub.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/gkehub.googleapis.com
+    name: GKE Hub API Service Account
+    roles:
+      - roles/gkehub.serviceAgent
+  - api: gameservices.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-gameservices.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/gameservices.googleapis.com
+    name: Game Services Agent
+    roles:
+      - roles/gameservices.serviceAgent
+  - api: gkeonprem.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-gkeonprem.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/gkeonprem.googleapis.com
+    name: Gke On-Prem Service Account
+    roles:
+      - roles/gkeonprem.serviceAgent
+  - api: dataproc.googleapis.com
+    email: service-${PROJECT_NUMBER}@dataproc-accounts.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/dataproc.googleapis.com
+    name: Google Cloud Dataproc Service Agent
+    roles:
+      - roles/dataproc.serviceAgent
+  - api: cloudfunctions.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcf-admin-robot.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/cloudfunctions.googleapis.com
+    name: Google Cloud Functions Service Agent
+    roles:
+      - roles/cloudfunctions.serviceAgent
+  - api: ml.googleapis.com
+    email: service-${PROJECT_NUMBER}@cloud-ml.google.com.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/ml.googleapis.com
+    name: Google Cloud ML Engine Service Agent
+    roles:
+      - roles/ml.serviceAgent
+  - api: osconfig.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-osconfig.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/osconfig.googleapis.com
+    name: Google Cloud OS Config Service Agent
+    roles:
+      - roles/osconfig.serviceAgent
+  - api: run.googleapis.com
+    email: service-${PROJECT_NUMBER}@serverless-robot-prod.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/run.googleapis.com
+    name: Google Cloud Run Service Agent
+    roles:
+      - roles/run.serviceAgent
+  - api: containerregistry.googleapis.com
+    email: service-${PROJECT_NUMBER}@containerregistry.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/containerregistry.googleapis.com
+    name: Google Container Registry Service Agent
+    roles:
+      - roles/containerregistry.ServiceAgent
+  - api: genomics.googleapis.com
+    email: service-${PROJECT_NUMBER}@genomics-api.google.com.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/genomics.googleapis.com
+    name: Google Genomics Service Agent
+    roles:
+      - roles/genomics.serviceAgent
+  - api: krmapihosting.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-krmapihosting.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/krmapihosting.googleapis.com
+    name: KRM API Hosting Service Account
+    roles:
+      - roles/krmapihosting.serviceAgent
+  - api: krmapihosting.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-krmapihosting-dataplane.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/krmapihosting.googleapis.com
+    name: KRM API Hosting Service Account
+    roles:
+      - roles/krmapihosting.anthosApiEndpointServiceAgent
+  - api: container.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-gkenode.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/container.googleapis.com
+    name: Kubernetes Engine Node Service Agent
+    roles:
+      - roles/container.nodeServiceAgent
+  - api: container.googleapis.com
+    email: service-${PROJECT_NUMBER}@container-engine-robot.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/container.googleapis.com
+    name: Kubernetes Engine Service Agent
+    roles:
+      - roles/container.serviceAgent
+  - api: livestream.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-livestream.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/livestream.googleapis.com
+    name: Livestream Service Account
+    roles:
+      - roles/livestream.serviceAgent
+  - api: meshconfig.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-meshconfig.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/meshconfig.googleapis.com
+    name: Mesh Config Service Account
+    roles:
+      - roles/meshconfig.serviceAgent
+  - api: monitoring.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-monitoring-notification.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/monitoring.googleapis.com
+    name: Monitoring Service Account
+    roles:
+      - roles/monitoring.notificationServiceAgent
+  - api: multiclusteringress.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-multiclusteringress.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/multiclusteringress.googleapis.com
+    name: Multi Cluster Ingress Service Account
+    roles:
+      - roles/multiclusteringress.serviceAgent
+  - api: multiclustermetering.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-mcmetering.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/multiclustermetering.googleapis.com
+    name: Multi cluster metering Service Account
+    roles:
+      - roles/multiclustermetering.serviceAgent
+  - api: multiclusterservicediscovery.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-mcsd.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/multiclusterservicediscovery.googleapis.com
+    name: Multi-cluster Service Discovery Service Account
+    roles:
+      - roles/multiclusterservicediscovery.serviceAgent
+  - api: networkservices.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-networkactions.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/networkservices.googleapis.com
+    name: Network Actions Service Account
+    roles:
+      - roles/networkactions.serviceAgent
+  - api: networkconnectivity.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-networkconnectivity.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/networkconnectivity.googleapis.com
+    name: Network Connectivity Service Account
+    roles:
+      - roles/networkconnectivity.serviceAgent
+  - api: ondemandscanning.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-ondemandscanning.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/ondemandscanning.googleapis.com
+    name: On-Demand Scanning Service Account
+    roles:
+      - roles/ondemandscanning.serviceAgent
+  - api: pubsublite.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-pubsublite.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/pubsublite.googleapis.com
+    name: Pub/Sub Lite Service Account
+    roles:
+      - roles/pubsublite.serviceAgent
+  - api: rapidmigrationassessment.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-rma.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/rapidmigrationassessment.googleapis.com
+    name: Rapid Migration Assessment Service Account
+    roles:
+      - roles/rapidmigrationassessment.serviceAgent
+  - api: remotebuildexecution.googleapis.com
+    email: service-${PROJECT_NUMBER}@remotebuildexecution.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/remotebuildexecution.googleapis.com
+    name: Remote Build Execution Service Agent
+    roles:
+      - roles/remotebuildexecution.serviceAgent
+  - api: retail.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-retail.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/retail.googleapis.com
+    name: Retail Service Account
+    roles:
+      - roles/retail.serviceAgent
+  - api: securedlandingzone.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-slz.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/securedlandingzone.googleapis.com
+    name: Secured Landing Zone Service Account
+    roles:
+      - roles/securedlandingzone.serviceAgent
+  - api: runapps.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-runapps.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/runapps.googleapis.com
+    name: Serverless Integrations Service Account
+    roles:
+      - roles/runapps.serviceAgent
+  - api: vpcaccess.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-vpcaccess.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/vpcaccess.googleapis.com
+    name: Serverless VPC Access Service Agent
+    roles:
+      - roles/vpcaccess.serviceAgent
+  - api: servicedirectory.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-servicedirectory.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/servicedirectory.googleapis.com
+    name: Service Directory Service Account
+    roles:
+      - roles/servicedirectory.serviceAgent
+  - api: servicenetworking.googleapis.com
+    email: service-${PROJECT_NUMBER}@service-networking.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/servicenetworking.googleapis.com
+    name: Service Networking Service Agent
+    roles:
+      - roles/servicenetworking.serviceAgent
+  - api: speech.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-speech.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/speech.googleapis.com
+    name: Speech-to-Text Service Account
+    roles:
+      - roles/speech.serviceAgent
+  - api: stream.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-stream.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/stream.googleapis.com
+    name: Stream Service Account
+    roles:
+      - roles/stream.serviceAgent
+  - api: tpu.googleapis.com
+    email: service-${PROJECT_NUMBER}@cloud-tpu.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/tpu.googleapis.com
+    name: TPU Service Agent
+    roles:
+      - roles/tpu.serviceAgent
+  - api: tpu.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-tpu.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/tpu.googleapis.com
+    name: TPU Service Agent (v2)
+    roles:
+      - roles/cloudtpu.serviceAgent
+  - api: transcoder.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-transcoder.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/transcoder.googleapis.com
+    name: Transcoder Service Account
+    roles:
+      - roles/transcoder.serviceAgent
+  - api: vmwareengine.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-vmwareengine.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/vmwareengine.googleapis.com
+    name: VMwareEngine Service Account
+    roles:
+      - roles/vmwareengine.serviceAgent
+  - api: visionai.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-visionai.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/visionai.googleapis.com
+    name: Vision AI Service Account
+    roles:
+      - roles/visionai.serviceAgent
+  - api: workloadmanager.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-workloadmanager.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/workloadmanager.googleapis.com
+    name: Workload Manager Service Account
+    roles:
+      - roles/workloadmanager.serviceAgent
+  - api: workstations.googleapis.com
+    email: service-${PROJECT_NUMBER}@gcp-sa-workstations.iam.gserviceaccount.com
+    id: projects/${PROJECT_NUMBER}/services/workstations.googleapis.com
+    name: Workstations Service Account
+    roles:
+      - roles/workstations.serviceAgent

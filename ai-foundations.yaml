@@ -1,0 +1,46 @@
+default_context:
+
+  - name: "cloud_rm_path"
+    value: "/Users/joshuavink/Devoteam/speech-to-text/cloud_foundations/resource-manager"
+
+  - name: "cloud_iam_path"
+    value: "/Users/joshuavink/Devoteam/speech-to-text/cloud_foundations/iam"
+
+  - name: "tf_modules_path"
+    value: "/Users/joshuavink/Devoteam/speech-to-text/cloud_foundations/modules"
+
+  - name: "infrastructure_admin_email"
+    value: "joshua.vink@devoteam.com"
+
+  - name: "project_folder"
+    value: "speech-to-text"
+
+  - name: "project_id_dev"
+    value: "pj-speech-text-dev"
+
+  - name: "project_id_uat"
+    value: "pj-speech-text-uat"
+
+  - name: "project_id_prod"
+    value: "pj-speech-text-prod"
+
+  - name: "region"
+    value: "europe-west1"
+
+  - name: "repo_name"
+    value: "nl-speech-to-text"
+
+  - name: "repo_owner"
+    value: "JoshuaDevoteam"
+
+  - name: "tf_service_account"
+    value: "terraform"
+
+  - name: "branch_regex_dev"
+    value: ".*"
+
+  - name: "branch_regex_uat"
+    value: "release.*"
+
+  - name: "branch_regex_prod"
+    value: "main"
