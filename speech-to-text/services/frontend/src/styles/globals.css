@@ -41,7 +41,7 @@
   
   /* Progress bar */
   .progress-bar {
-    @apply w-full bg-secondary-200 rounded-full h-2 overflow-hidden;
+    @apply relative w-full bg-secondary-200 rounded-full h-2 overflow-hidden;
   }
   
   .progress-bar-fill {
