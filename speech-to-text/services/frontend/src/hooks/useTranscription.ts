@@ -133,11 +133,25 @@ export function useTranscription() {
       speed = theoreticalSpeed
     }
 
-    const etaSeconds = uploadCompletedRef.current
-      ? 0
-      : uploadEtaRef.current ?? (expectedDuration != null
-        ? Math.max(expectedDuration - elapsedSeconds, 0)
-        : undefined)
+    const etaFromExpected = expectedDuration != null
+      ? Math.max(expectedDuration - elapsedSeconds, 0)
+      : undefined
+
+    let etaSeconds: number | undefined
+    if (uploadCompletedRef.current) {
+      etaSeconds = 0
+    } else {
+      const storedEta = uploadEtaRef.current ?? undefined
+      if (etaFromExpected != null && storedEta != null) {
+        etaSeconds = Math.max(Math.min(storedEta, etaFromExpected), 0)
+      } else {
+        etaSeconds = etaFromExpected ?? storedEta
+      }
+
+      if (etaSeconds != null) {
+        uploadEtaRef.current = etaSeconds
+      }
+    }
 
     setUploadStats({
       loaded: Number.isFinite(displayedLoaded) ? displayedLoaded : uploadLoadedRef.current ?? 0,
