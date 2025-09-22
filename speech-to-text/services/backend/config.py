@@ -3,6 +3,7 @@
 import os
 import json
 from typing import List, Optional
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -29,6 +30,20 @@ class Settings(BaseSettings):
     
     # CORS Settings
     cors_origins: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    
+    @field_validator('cors_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from various formats."""
+        if isinstance(v, str):
+            # Handle comma-separated string
+            if ',' in v:
+                return [origin.strip() for origin in v.split(',')]
+            # Handle single string
+            else:
+                return [v]
+        # Handle list (default case)
+        return v
     
     # Authentication Settings (optional)
     service_account_path: Optional[str] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
