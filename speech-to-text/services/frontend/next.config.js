@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   
   // Environment variables to expose to the browser
   env: {
@@ -65,8 +64,6 @@ const nextConfig = {
 
   // Experimental features
   experimental: {
-    // Enable React Server Components
-    appDir: true,
     // Enable SWC transforms
     swcPlugins: [],
   },
