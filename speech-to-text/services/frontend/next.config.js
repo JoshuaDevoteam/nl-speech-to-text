@@ -1,3 +1,5 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -49,6 +51,11 @@ const nextConfig = {
 
   // Webpack configuration
   webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname, 'src'),
+    }
+
     // Ignore node modules in client bundles
     if (!isServer) {
       config.resolve.fallback = {
