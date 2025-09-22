@@ -14,7 +14,12 @@ dist/
 downloads/
 eggs/
 .eggs/
+# Shared Python build artifacts
 lib/
+
+# Allow Next.js frontend utilities under src/lib
+!speech-to-text/services/frontend/src/lib/
+!speech-to-text/services/frontend/src/lib/**
 lib64/
 parts/
 sdist/
