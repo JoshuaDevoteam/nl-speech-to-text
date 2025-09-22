@@ -36,12 +36,10 @@ class Settings(BaseSettings):
     def cors_origins(self) -> List[str]:
         """Get CORS origins from environment or default."""
         if self._cors_origins_env:
-            # Handle comma-separated string
-            if ',' in self._cors_origins_env:
-                return [origin.strip() for origin in self._cors_origins_env.split(',')]
-            # Handle single string
-            else:
-                return [self._cors_origins_env]
+            raw_origins = [origin.strip() for origin in self._cors_origins_env.split(',') if origin.strip()]
+            # Filter out wildcard patterns; these are handled by regex matching instead
+            explicit_origins = [origin for origin in raw_origins if '*' not in origin]
+            return explicit_origins
         # Default fallback
         return ["http://localhost:3000", "http://localhost:3001"]
     
