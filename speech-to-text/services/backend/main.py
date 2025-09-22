@@ -218,16 +218,27 @@ async def process_transcription(job_id: str, request: TranscriptionRequest):
         jobs[job_id].status = "transcribing"
         await notify_websocket(job_id, {"status": "transcribing", "message": "Transcribing audio"})
         
-        transcript = await transcription_service.transcribe_audio(
+        transcript, speaker_transcript, speaker_summary = await transcription_service.transcribe_audio(
             gcs_uri=audio_gcs_uri,
             language_code=request.language_code or "nl-NL",
-            recognizer_id=request.recognizer_id
+            recognizer_id=request.recognizer_id,
+            enable_diarization=request.enable_diarization,
+            enable_speaker_identification=request.enable_speaker_identification,
+            min_speaker_count=request.min_speaker_count,
+            max_speaker_count=request.max_speaker_count
         )
+        
+        # Apply speaker identification if enabled
+        if request.enable_speaker_identification and speaker_transcript:
+            jobs[job_id].status = "identifying_speakers"
+            await notify_websocket(job_id, {"status": "identifying_speakers", "message": "Identifying speakers"})
         
         # Update job with results
         jobs[job_id].status = "completed"
         jobs[job_id].completed_at = datetime.now()
         jobs[job_id].transcript = transcript
+        jobs[job_id].speaker_identified_transcript = speaker_transcript
+        jobs[job_id].speaker_identification_summary = speaker_summary
         
         # Save transcript to GCS
         transcript_uri = await storage_service.save_transcript(transcript, job_id)
@@ -279,6 +290,8 @@ async def get_transcription_status(job_id: str):
     if job.status == "completed":
         response["transcript"] = job.transcript
         response["transcript_uri"] = job.transcript_uri
+        response["speaker_identified_transcript"] = job.speaker_identified_transcript
+        response["speaker_identification_summary"] = job.speaker_identification_summary
     elif job.status == "failed":
         response["error"] = job.error
     
@@ -286,9 +299,11 @@ async def get_transcription_status(job_id: str):
     if job.status == "pending":
         response["progress"] = 0
     elif job.status == "extracting_audio":
-        response["progress"] = 25
+        response["progress"] = 20
     elif job.status == "transcribing":
         response["progress"] = 50
+    elif job.status == "identifying_speakers":
+        response["progress"] = 80
     elif job.status == "completed":
         response["progress"] = 100
     else:

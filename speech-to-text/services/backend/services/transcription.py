@@ -1,12 +1,13 @@
 """Transcription service using Google Cloud Speech-to-Text API."""
 
 import asyncio
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict, Any
 from google.cloud import speech
 from google.cloud import storage
 from google.api_core import client_options
 from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
+from .speaker_identification import SpeakerIdentificationService
 
 
 class TranscriptionService:
@@ -24,6 +25,9 @@ class TranscriptionService:
         
         # Initialize Speech clients
         self._init_clients()
+        
+        # Initialize Speaker Identification service
+        self.speaker_identification = SpeakerIdentificationService(settings)
     
     def _init_clients(self):
         """Initialize Google Cloud Speech clients."""
@@ -115,9 +119,10 @@ class TranscriptionService:
         language_code: str = "nl-NL",
         recognizer_id: Optional[str] = None,
         enable_diarization: bool = False,
+        enable_speaker_identification: bool = False,
         min_speaker_count: int = 2,
         max_speaker_count: int = 10
-    ) -> str:
+    ) -> Tuple[str, Optional[str], Optional[Dict[str, Any]]]:
         """Transcribe audio from Google Cloud Storage.
         
         Args:
@@ -125,23 +130,41 @@ class TranscriptionService:
             language_code: Language code for transcription
             recognizer_id: Optional recognizer ID to use
             enable_diarization: Enable speaker diarization
+            enable_speaker_identification: Enable LLM-based speaker identification
             min_speaker_count: Minimum number of speakers
             max_speaker_count: Maximum number of speakers
             
         Returns:
-            Transcribed text
+            Tuple of (original_transcript, speaker_identified_transcript, speaker_summary)
         """
+        # Get base transcript - disable diarization if speaker identification is enabled
+        use_diarization = enable_diarization and not enable_speaker_identification
+        
         # Use v2 API with recognizer if available
         if recognizer_id and self.location in ["us", "europe-west4"]:
-            return await self._transcribe_v2(gcs_uri, recognizer_id)
+            transcript = await self._transcribe_v2(gcs_uri, recognizer_id)
         else:
-            return await self._transcribe_v1(
+            transcript = await self._transcribe_v1(
                 gcs_uri,
                 language_code,
-                enable_diarization,
+                use_diarization,
                 min_speaker_count,
                 max_speaker_count
             )
+        
+        # Apply speaker identification if enabled
+        if enable_speaker_identification:
+            try:
+                identification_result = await self.speaker_identification.identify_speakers(transcript)
+                speaker_transcript = self.speaker_identification.format_transcript_with_speakers(identification_result)
+                speaker_summary = self.speaker_identification.get_speaker_summary(identification_result)
+                return transcript, speaker_transcript, speaker_summary
+            except Exception as e:
+                print(f"Speaker identification failed: {e}")
+                # Return original transcript with empty speaker data
+                return transcript, None, None
+        
+        return transcript, None, None
     
     async def _transcribe_v2(
         self,

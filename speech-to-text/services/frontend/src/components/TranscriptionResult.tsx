@@ -28,15 +28,27 @@ export default function TranscriptionResult({
   const [copied, setCopied] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
 
-  const { transcript, jobId, createdAt, completedAt, gcsUri } = transcriptionState
+  const { 
+    transcript, 
+    speakerIdentifiedTranscript,
+    speakerIdentificationSummary,
+    jobId, 
+    createdAt, 
+    completedAt, 
+    gcsUri 
+  } = transcriptionState
 
   if (!transcript) {
     return null
   }
 
+  // Use speaker-identified transcript if available, otherwise fall back to original
+  const displayTranscript = speakerIdentifiedTranscript || transcript
+  const hasSpeakerIdentification = !!speakerIdentifiedTranscript
+
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(transcript)
+      await navigator.clipboard.writeText(displayTranscript)
       setCopied(true)
       toast.success('Transcript copied to clipboard!')
       setTimeout(() => setCopied(false), 2000)
@@ -46,11 +58,12 @@ export default function TranscriptionResult({
   }
 
   const downloadTranscript = () => {
-    const blob = new Blob([transcript], { type: 'text/plain' })
+    const blob = new Blob([displayTranscript], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `transcript-${jobId}.txt`
+    const suffix = hasSpeakerIdentification ? '-speakers' : ''
+    a.download = `transcript-${jobId}${suffix}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -71,11 +84,11 @@ export default function TranscriptionResult({
     return `${remainingSeconds}s`
   }
 
-  const truncatedTranscript = transcript.length > 300 
-    ? transcript.substring(0, 300) + '...'
-    : transcript
+  const truncatedTranscript = displayTranscript.length > 300 
+    ? displayTranscript.substring(0, 300) + '...'
+    : displayTranscript
 
-  const shouldShowExpand = transcript.length > 300
+  const shouldShowExpand = displayTranscript.length > 300
 
   return (
     <motion.div
@@ -103,7 +116,7 @@ export default function TranscriptionResult({
               )}
               <div className="flex items-center space-x-1">
                 <SpeakerWaveIcon className="h-4 w-4" />
-                <span>{transcript.split(' ').length} words</span>
+                <span>{displayTranscript.split(' ').length} words</span>
               </div>
             </div>
           </div>
@@ -152,7 +165,7 @@ export default function TranscriptionResult({
         <div className="bg-gray-50 rounded-lg p-4 border">
           <div className="prose prose-sm max-w-none">
             <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-              {isExpanded ? transcript : truncatedTranscript}
+              {isExpanded ? displayTranscript : truncatedTranscript}
             </p>
           </div>
           
@@ -174,6 +187,45 @@ export default function TranscriptionResult({
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none" />
         )}
       </div>
+
+      {/* Speaker Identification Summary */}
+      {hasSpeakerIdentification && speakerIdentificationSummary && (
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center space-x-2 mb-3">
+            <SpeakerWaveIcon className="h-5 w-5 text-blue-600" />
+            <h4 className="text-sm font-medium text-blue-900">Speaker Identification</h4>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="font-medium text-blue-700">Speakers Detected:</span>
+              <span className="ml-2 text-blue-900">{speakerIdentificationSummary.total_speakers}</span>
+            </div>
+            <div>
+              <span className="font-medium text-blue-700">Confidence:</span>
+              <span className={`ml-2 ${
+                speakerIdentificationSummary.confidence === 'high' 
+                  ? 'text-green-700' 
+                  : speakerIdentificationSummary.confidence === 'medium'
+                    ? 'text-yellow-700'
+                    : 'text-red-700'
+              }`}>
+                {speakerIdentificationSummary.confidence}
+              </span>
+            </div>
+            <div>
+              <span className="font-medium text-blue-700">Speakers:</span>
+              <span className="ml-2 text-blue-900">
+                {speakerIdentificationSummary.speakers.join(', ')}
+              </span>
+            </div>
+          </div>
+          {speakerIdentificationSummary.notes && (
+            <div className="mt-3 text-xs text-blue-600">
+              <strong>Note:</strong> {speakerIdentificationSummary.notes}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Metadata */}
       <div className="mt-6 pt-4 border-t border-gray-200">

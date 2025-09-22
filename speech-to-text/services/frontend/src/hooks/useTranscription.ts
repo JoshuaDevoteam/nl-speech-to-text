@@ -213,7 +213,9 @@ export function useTranscription() {
       status: data.status as any,
       progress: data.progress || prev.progress,
       message: data.message,
-      transcript: data.data?.transcript || prev.transcript
+      transcript: data.data?.transcript || prev.transcript,
+      speakerIdentifiedTranscript: data.data?.speaker_identified_transcript || prev.speakerIdentifiedTranscript,
+      speakerIdentificationSummary: data.data?.speaker_identification_summary || prev.speakerIdentificationSummary
     }))
 
     // Handle completion
@@ -239,6 +241,8 @@ export function useTranscription() {
         progress: status.progress,
         transcript: status.transcript,
         transcriptUri: status.transcript_uri,
+        speakerIdentifiedTranscript: status.speaker_identified_transcript,
+        speakerIdentificationSummary: status.speaker_identification_summary,
         error: status.error,
         createdAt: status.created_at,
         startedAt: status.started_at,
@@ -438,6 +442,7 @@ export function useTranscription() {
         extract_audio: options.extract_audio || false,
         enable_punctuation: options.enable_punctuation !== false,
         enable_diarization: options.enable_diarization || false,
+        enable_speaker_identification: options.enable_speaker_identification || false,
         min_speaker_count: options.min_speaker_count || 2,
         max_speaker_count: options.max_speaker_count || 10
       }

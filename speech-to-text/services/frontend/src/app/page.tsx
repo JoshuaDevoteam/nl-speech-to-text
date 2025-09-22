@@ -1,12 +1,21 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { CloudArrowUpIcon, SpeakerWaveIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { CloudArrowUpIcon, SpeakerWaveIcon, DocumentTextIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import FileUpload from '@/components/FileUpload'
 import ProgressBar from '@/components/ProgressBar'
 import TranscriptionResult from '@/components/TranscriptionResult'
 import { useTranscription } from '@/hooks/useTranscription'
+import type { TranscriptionOptions } from '@/types/transcription'
 import toast from 'react-hot-toast'
+
+const DEFAULT_OPTIONS: TranscriptionOptions = {
+  extract_audio: false,
+  enable_punctuation: true,
+  enable_speaker_identification: true,
+  min_speaker_count: 2,
+  max_speaker_count: 6,
+}
 
 export default function HomePage() {
   const formatBytes = (bytes: number | undefined) => {
@@ -48,32 +57,51 @@ export default function HomePage() {
   } = useTranscription()
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [transcriptionOptions, setTranscriptionOptions] = useState<TranscriptionOptions>({ ...DEFAULT_OPTIONS })
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {
+      reset()
       setUploadedFile(file)
+
+      const isVideoFile = file.type.startsWith('video/')
+      if (isVideoFile && !transcriptionOptions.extract_audio) {
+        setTranscriptionOptions(prev => ({
+          ...prev,
+          extract_audio: true,
+        }))
+      }
+
       const result = await uploadFile(file)
-      
-      if (result.success) {
-        toast.success('File uploaded successfully!')
-        // Automatically start transcription
-        await startTranscription(result.data.gcs_uri, {
-          extract_audio: file.type.startsWith('video/'),
-          enable_punctuation: true,
-          enable_diarization: false
-        })
-      } else {
+
+      if (!result.success) {
         toast.error(result.error || 'Failed to upload file')
+        return
+      }
+
+      toast.success('File uploaded successfully!')
+
+      const shouldExtractAudio = isVideoFile ? true : transcriptionOptions.extract_audio
+
+      try {
+        await startTranscription(result.data.gcs_uri, {
+          ...transcriptionOptions,
+          extract_audio: shouldExtractAudio,
+        })
+      } catch (startError) {
+        console.error('Transcription start error:', startError)
+        toast.error('Failed to start transcription')
       }
     } catch (error) {
       console.error('Upload error:', error)
       toast.error('An unexpected error occurred during upload')
     }
-  }, [uploadFile, startTranscription])
+  }, [uploadFile, startTranscription, transcriptionOptions, reset])
 
   const handleNewUpload = useCallback(() => {
     reset()
     setUploadedFile(null)
+    setTranscriptionOptions({ ...DEFAULT_OPTIONS })
   }, [reset])
 
   const features = [
@@ -83,8 +111,8 @@ export default function HomePage() {
       icon: CloudArrowUpIcon,
     },
     {
-      name: 'Audio Extraction',
-      description: 'Automatically extract audio from video files for transcription.',
+      name: 'Speaker Identification',
+      description: 'AI-powered speaker identification for Dutch conversations using Gemini.',
       icon: SpeakerWaveIcon,
     },
     {
@@ -93,6 +121,8 @@ export default function HomePage() {
       icon: DocumentTextIcon,
     },
   ]
+
+  const isVideoUpload = !!uploadedFile?.type.startsWith('video/')
 
   return (
     <div className="py-12">
@@ -108,20 +138,107 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Upload section */}
-        <div className="mt-16">
-          <div className="mx-auto max-w-3xl">
+        {/* Configuration & upload */}
+        <div className="mt-16 space-y-10">
+          <div className="mx-auto max-w-4xl">
+            <div className="card">
+              <div className="flex items-center space-x-2 mb-6">
+                <Cog6ToothIcon className="h-5 w-5 text-primary-600" />
+                <h3 className="text-lg font-medium text-gray-900">Transcription Configuration</h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">
+                Configure the run before you upload. These settings apply to the next transcription automatically after the upload finishes.
+              </p>
+
+              <div className="space-y-6">
+                <div className="rounded-lg border border-primary-100 bg-primary-50 p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm">
+                      <SpeakerWaveIcon className="h-5 w-5 text-primary-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-primary-900">Gemini speaker identification</h4>
+                      <p className="mt-1 text-xs text-primary-700">
+                        Keep speaker labels consistent throughout the full transcript using our LLM-based analysis.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Automatic punctuation</label>
+                    <p className="text-xs text-gray-500">Add punctuation and casing automatically.</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={transcriptionOptions.enable_punctuation}
+                    onChange={(e) => setTranscriptionOptions(prev => ({
+                      ...prev,
+                      enable_punctuation: e.target.checked
+                    }))}
+                    disabled={isUploading || isTranscribing}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">LLM speaker identification</label>
+                    <p className="text-xs text-gray-500">Use Gemini to detect speaker changes automatically.</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={transcriptionOptions.enable_speaker_identification}
+                    onChange={(e) => setTranscriptionOptions(prev => ({
+                      ...prev,
+                      enable_speaker_identification: e.target.checked
+                    }))}
+                    disabled={isUploading || isTranscribing}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Extract audio</label>
+                    <p className="text-xs text-gray-500">
+                      {isVideoUpload
+                        ? 'Convert this video to audio automatically before transcribing.'
+                        : transcriptionOptions.extract_audio
+                          ? 'Will extract audio when you upload a video file.'
+                          : 'Toggle on to extract audio on the next video upload.'}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={transcriptionOptions.extract_audio}
+                    onChange={(e) => setTranscriptionOptions(prev => ({
+                      ...prev,
+                      extract_audio: e.target.checked
+                    }))}
+                    disabled={isUploading || isTranscribing}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-3xl space-y-8">
             {!transcriptionState.jobId && !isUploading && !isTranscribing && (
               <div className="card">
-                <FileUpload onFileSelect={handleFileUpload} />
+                <FileUpload 
+                  onFileSelect={handleFileUpload}
+                  disabled={isUploading || isTranscribing}
+                />
               </div>
             )}
 
-            {/* Upload progress */}
             {isUploading && (
               <div className="card">
                 <div className="text-center">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  <h3 className="mb-4 text-lg font-medium text-gray-900">
                     Uploading {uploadedFile?.name}...
                   </h3>
                   <ProgressBar 
@@ -141,7 +258,7 @@ export default function HomePage() {
                     )}
                   </p>
                   {uploadStats?.etaSeconds != null && uploadStats.etaSeconds > 0 && (
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="mt-1 text-xs text-gray-400">
                       ~{formatDuration(uploadStats.etaSeconds)} remaining
                       {uploadStats.speedBps && uploadStats.speedBps > 0 && (
                         <> · {formatBytes(uploadStats.speedBps)}/s</>
@@ -152,7 +269,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* Transcription progress */}
             {(isTranscribing || transcriptionState.jobId) && (
               <div className="space-y-6">
                 <div className="card">
@@ -163,13 +279,12 @@ export default function HomePage() {
                     fallbackProgress={transcriptionProgressHint ?? undefined}
                   />
                   {transcriptionEta && transcriptionEta > 0 && (
-                    <p className="text-xs text-gray-400 text-center">
+                    <p className="text-center text-xs text-gray-400">
                       Estimated remaining time ~{formatDuration(transcriptionEta)}
                     </p>
                   )}
                 </div>
 
-                {/* Transcription result */}
                 {transcriptionState.transcript && (
                   <TranscriptionResult 
                     transcriptionState={transcriptionState}
@@ -177,7 +292,6 @@ export default function HomePage() {
                   />
                 )}
 
-                {/* New upload button for completed/failed states */}
                 {(transcriptionState.status === 'completed' || transcriptionState.status === 'failed') && (
                   <div className="text-center">
                     <button

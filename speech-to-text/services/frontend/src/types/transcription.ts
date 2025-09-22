@@ -1,9 +1,11 @@
 export interface TranscriptionState {
   jobId?: string
-  status?: 'pending' | 'processing' | 'extracting_audio' | 'transcribing' | 'completed' | 'failed'
+  status?: 'pending' | 'processing' | 'extracting_audio' | 'transcribing' | 'identifying_speakers' | 'completed' | 'failed'
   progress?: number
   transcript?: string
   transcriptUri?: string
+  speakerIdentifiedTranscript?: string
+  speakerIdentificationSummary?: SpeakerIdentificationSummary
   error?: string
   message?: string
   createdAt?: string
@@ -11,6 +13,13 @@ export interface TranscriptionState {
   completedAt?: string
   gcsUri?: string
   fileSizeBytes?: number
+}
+
+export interface SpeakerIdentificationSummary {
+  total_speakers: number
+  confidence: 'high' | 'medium' | 'low'
+  speakers: string[]
+  notes?: string
 }
 
 export interface UploadedFileData {
@@ -31,6 +40,7 @@ export interface TranscriptionOptions {
   extract_audio?: boolean
   enable_punctuation?: boolean
   enable_diarization?: boolean
+  enable_speaker_identification?: boolean
   min_speaker_count?: number
   max_speaker_count?: number
 }
@@ -42,6 +52,7 @@ export interface TranscriptionRequest {
   extract_audio?: boolean
   enable_punctuation?: boolean
   enable_diarization?: boolean
+  enable_speaker_identification?: boolean
   min_speaker_count?: number
   max_speaker_count?: number
 }
@@ -62,6 +73,8 @@ export interface TranscriptionStatusResponse {
   gcs_uri: string
   transcript?: string
   transcript_uri?: string
+  speaker_identified_transcript?: string
+  speaker_identification_summary?: SpeakerIdentificationSummary
   error?: string
 }
 

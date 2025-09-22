@@ -14,6 +14,7 @@ class TranscriptionRequest(BaseModel):
     extract_audio: bool = Field(False, description="Extract audio from video file")
     enable_punctuation: bool = Field(True, description="Enable automatic punctuation")
     enable_diarization: bool = Field(False, description="Enable speaker diarization")
+    enable_speaker_identification: bool = Field(False, description="Enable LLM-based speaker identification")
     min_speaker_count: Optional[int] = Field(2, description="Minimum number of speakers")
     max_speaker_count: Optional[int] = Field(10, description="Maximum number of speakers")
 
@@ -37,6 +38,8 @@ class TranscriptionStatus(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Job completion timestamp")
     transcript: Optional[str] = Field(None, description="Transcription result")
     transcript_uri: Optional[str] = Field(None, description="GCS URI of saved transcript")
+    speaker_identified_transcript: Optional[str] = Field(None, description="Transcript with speaker identification")
+    speaker_identification_summary: Optional[Dict[str, Any]] = Field(None, description="Speaker identification summary")
     error: Optional[str] = Field(None, description="Error message if failed")
 
 
@@ -71,13 +74,15 @@ class JobStatus(BaseModel):
     """Internal model for tracking job status."""
     
     job_id: str
-    status: str  # pending, processing, extracting_audio, transcribing, completed, failed
+    status: str  # pending, processing, extracting_audio, transcribing, identifying_speakers, completed, failed
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     gcs_uri: str
     transcript: Optional[str] = None
     transcript_uri: Optional[str] = None
+    speaker_identified_transcript: Optional[str] = None
+    speaker_identification_summary: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 
