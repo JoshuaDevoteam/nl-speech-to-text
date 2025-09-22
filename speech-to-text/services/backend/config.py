@@ -28,22 +28,21 @@ class Settings(BaseSettings):
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     port: int = int(os.getenv("PORT", "8000"))
     
-    # CORS Settings
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    # CORS Settings - Use explicit environment variable handling
+    _cors_origins_env: Optional[str] = os.getenv("CORS_ORIGINS")
     
-    @field_validator('cors_origins', mode='before')
-    @classmethod
-    def parse_cors_origins(cls, v):
-        """Parse CORS origins from various formats."""
-        if isinstance(v, str):
+    @property
+    def cors_origins(self) -> List[str]:
+        """Get CORS origins from environment or default."""
+        if self._cors_origins_env:
             # Handle comma-separated string
-            if ',' in v:
-                return [origin.strip() for origin in v.split(',')]
+            if ',' in self._cors_origins_env:
+                return [origin.strip() for origin in self._cors_origins_env.split(',')]
             # Handle single string
             else:
-                return [v]
-        # Handle list (default case)
-        return v
+                return [self._cors_origins_env]
+        # Default fallback
+        return ["http://localhost:3000", "http://localhost:3001"]
     
     # Authentication Settings (optional)
     service_account_path: Optional[str] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
