@@ -35,7 +35,7 @@ steps:
       - --region=${_REGION}
       - --project=$PROJECT_ID
       - --service-account=sa-backend-dev@$PROJECT_ID.iam.gserviceaccount.com
-      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,GCP_LOCATION=${_REGION},GCS_BUCKET_NAME=gcs-pj-speech-text-dev-audio-uploads,GCS_TRANSCRIPT_BUCKET=gcs-pj-speech-text-dev-transcripts,CORS_ORIGINS=https://speech-frontend-*.run.app,CORS_ORIGIN_REGEX=https://speech-frontend-.*\.run\.app,RECOGNIZER_LOCATION=us,DEFAULT_RECOGNIZER_ID=dutch-recognizer-1,DEFAULT_LANGUAGE_CODE=nl-NL,SPEECH_MODEL=chirp_3
+      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,GCP_LOCATION=${_REGION},GCS_BUCKET_NAME=gcs-pj-speech-text-dev-audio-uploads,GCS_TRANSCRIPT_BUCKET=gcs-pj-speech-text-dev-transcripts,CORS_ORIGINS=https://speech-frontend-${PROJECT_NUMBER}.${_REGION}.run.app,https://speech-frontend-${PROJECT_ID}.${_REGION}.run.app,CORS_ORIGIN_REGEX=https://speech-frontend-[a-z0-9-]+\.${_REGION}\.run\.app,RECOGNIZER_LOCATION=us,DEFAULT_RECOGNIZER_ID=dutch-recognizer-1,DEFAULT_LANGUAGE_CODE=nl-NL,SPEECH_MODEL=chirp_3
       - --allow-unauthenticated
       - --cpu=2
       - --memory=4Gi
