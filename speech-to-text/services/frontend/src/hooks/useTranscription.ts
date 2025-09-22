@@ -60,8 +60,8 @@ export function useTranscription() {
             ? 0.75
             : 1.1
 
-    const estimatedSeconds = sizeMB / assumedRateMbPerSec
-    return Math.max(estimatedSeconds, 30)
+    const estimatedSeconds = (sizeMB / Math.max(assumedRateMbPerSec, 0.1)) * 1.35
+    return Math.max(estimatedSeconds, 60)
   }, [])
 
   const stopUploadTicker = useCallback(() => {
@@ -82,24 +82,30 @@ export function useTranscription() {
       uploadExpectedDuration.current = estimateUploadDuration(totalBytes)
     }
 
-    const expectedDuration = uploadExpectedDuration.current
-    let targetPercent = uploadRawProgress.current
-
-    if (!uploadCompletedRef.current && expectedDuration) {
-      const estimatedPercent = Math.min((elapsedSeconds / expectedDuration) * 100, 92)
-      targetPercent = Math.max(targetPercent, estimatedPercent)
-    }
-
-    if (!uploadCompletedRef.current) {
-      targetPercent = Math.min(targetPercent, 99.5)
-    }
-
+    const expectedDuration = uploadExpectedDuration.current ?? null
     const currentDisplay = uploadDisplayedProgress.current
+
+    let targetPercent: number
+
+    if (uploadCompletedRef.current) {
+      targetPercent = Math.max(uploadRawProgress.current, currentDisplay)
+    } else {
+      const cappedActual = Math.min(uploadRawProgress.current, 98)
+      const timeDriven = expectedDuration
+        ? Math.min((elapsedSeconds / expectedDuration) * 100, 92)
+        : cappedActual
+      let baseTarget = Math.min(cappedActual, timeDriven)
+      if (baseTarget <= currentDisplay && timeDriven > currentDisplay) {
+        baseTarget = Math.min(timeDriven, 92)
+      }
+      targetPercent = Math.max(currentDisplay, baseTarget)
+    }
+
     const diff = targetPercent - currentDisplay
     let nextDisplay = currentDisplay
 
     if (diff > 0.1) {
-      const maxStep = uploadCompletedRef.current ? 5 : Math.max(0.35, diff * 0.08)
+      const maxStep = uploadCompletedRef.current ? 12 : Math.max(0.35, diff * 0.08)
       nextDisplay = Math.min(targetPercent, currentDisplay + maxStep)
     } else if (diff < -0.1) {
       nextDisplay = targetPercent
@@ -107,22 +113,29 @@ export function useTranscription() {
 
     uploadDisplayedProgress.current = nextDisplay
 
-    const percentRounded = Math.max(0, Math.min(100, Math.round(nextDisplay)))
+    const percentRounded = Math.floor(Math.max(0, Math.min(100, nextDisplay)))
     setUploadProgress(percentRounded)
 
     const displayedLoaded = totalBytes
       ? Math.min((nextDisplay / 100) * totalBytes, totalBytes)
       : uploadLoadedRef.current
 
-    const fallbackSpeed = expectedDuration && totalBytes
+    const theoreticalSpeed = expectedDuration && totalBytes
       ? totalBytes / Math.max(expectedDuration, elapsedSeconds > 0 ? elapsedSeconds : 1)
       : undefined
 
-    const speed = uploadSmoothedSpeed.current ?? fallbackSpeed ?? undefined
+    let speed: number | undefined
+    if (uploadSmoothedSpeed.current != null) {
+      speed = theoreticalSpeed != null
+        ? Math.min(uploadSmoothedSpeed.current, theoreticalSpeed)
+        : uploadSmoothedSpeed.current
+    } else if (theoreticalSpeed != null) {
+      speed = theoreticalSpeed
+    }
 
     const etaSeconds = uploadCompletedRef.current
       ? 0
-      : uploadEtaRef.current ?? (expectedDuration
+      : uploadEtaRef.current ?? (expectedDuration != null
         ? Math.max(expectedDuration - elapsedSeconds, 0)
         : undefined)
 
@@ -302,14 +315,22 @@ export function useTranscription() {
             ? Math.min(100, Math.max(0, (clampedLoaded / totalBytes) * 100))
             : 0
 
-        uploadRawProgress.current = safePercent
+        const cappedForDisplay = uploadCompletedRef.current
+          ? safePercent
+          : Math.min(safePercent, 98)
+
+        uploadRawProgress.current = cappedForDisplay
 
         const elapsedSeconds = uploadStartTime.current ? (now - uploadStartTime.current) / 1000 : 0
 
         if (smoothedSpeed && totalBytes) {
-          const remainingSeconds = Math.max((totalBytes - clampedLoaded) / smoothedSpeed, 0)
-          uploadEtaRef.current = remainingSeconds
-          uploadExpectedDuration.current = Math.max(elapsedSeconds + remainingSeconds, 30)
+          const remainingSeconds = Math.max((totalBytes - clampedLoaded) / Math.max(smoothedSpeed, 1), 0)
+          const proposedDuration = Math.max(elapsedSeconds + remainingSeconds, 60)
+          const previous = uploadExpectedDuration.current ?? proposedDuration
+          const nextExpected = Math.max(previous, proposedDuration)
+          uploadExpectedDuration.current = nextExpected
+          const longTailEta = Math.max(nextExpected - elapsedSeconds, 0)
+          uploadEtaRef.current = Math.max(remainingSeconds, longTailEta)
         } else if (totalBytes) {
           const estimate = uploadExpectedDuration.current ?? estimateUploadDuration(totalBytes)
           uploadExpectedDuration.current = estimate ?? null
