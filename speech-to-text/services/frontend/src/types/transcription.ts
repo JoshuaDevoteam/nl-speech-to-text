@@ -10,6 +10,7 @@ export interface TranscriptionState {
   startedAt?: string
   completedAt?: string
   gcsUri?: string
+  fileSizeBytes?: number
 }
 
 export interface UploadedFileData {

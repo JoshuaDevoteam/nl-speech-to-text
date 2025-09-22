@@ -9,11 +9,39 @@ import { useTranscription } from '@/hooks/useTranscription'
 import toast from 'react-hot-toast'
 
 export default function HomePage() {
+  const formatBytes = (bytes: number | undefined) => {
+    if (!bytes && bytes !== 0) return null
+    if (bytes === 0) return '0 B'
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    const value = bytes / Math.pow(1024, i)
+    return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`
+  }
+
+  const formatDuration = (seconds?: number | null) => {
+    if (seconds == null || Number.isNaN(seconds)) return null
+    const clamped = Math.max(0, seconds)
+    if (clamped >= 3600) {
+      const hours = Math.floor(clamped / 3600)
+      const minutes = Math.floor((clamped % 3600) / 60)
+      return `${hours}h${minutes > 0 ? ` ${minutes}m` : ''}`
+    }
+    if (clamped >= 60) {
+      const minutes = Math.floor(clamped / 60)
+      const secs = Math.floor(clamped % 60)
+      return `${minutes}m${secs > 0 ? ` ${secs}s` : ''}`
+    }
+    return `${Math.ceil(clamped)}s`
+  }
+
   const {
     uploadFile,
     startTranscription,
     transcriptionState,
     uploadProgress,
+    uploadStats,
+    transcriptionEta,
+    transcriptionProgressHint,
     isUploading,
     isTranscribing,
     reset
@@ -51,7 +79,7 @@ export default function HomePage() {
   const features = [
     {
       name: 'Fast Upload',
-      description: 'Upload audio and video files up to 500MB in size with progress tracking.',
+      description: 'Upload audio and video files up to 5GB in size with progress tracking.',
       icon: CloudArrowUpIcon,
     },
     {
@@ -99,10 +127,27 @@ export default function HomePage() {
                   <ProgressBar 
                     progress={uploadProgress} 
                     className="mb-4"
+                    etaSeconds={uploadStats?.etaSeconds ?? undefined}
+                    speedBytesPerSecond={uploadStats?.speedBps ?? undefined}
                   />
                   <p className="text-sm text-gray-500">
                     {uploadProgress}% complete
+                    {uploadStats?.loaded !== undefined && (
+                      <>
+                        {' '}
+                        ({formatBytes(uploadStats.loaded)}
+                        {uploadStats?.total ? ` of ${formatBytes(uploadStats.total)}` : ''})
+                      </>
+                    )}
                   </p>
+                  {uploadStats?.etaSeconds != null && uploadStats.etaSeconds > 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      ~{formatDuration(uploadStats.etaSeconds)} remaining
+                      {uploadStats.speedBps && uploadStats.speedBps > 0 && (
+                        <> · {formatBytes(uploadStats.speedBps)}/s</>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -114,7 +159,14 @@ export default function HomePage() {
                   <ProgressBar 
                     transcriptionState={transcriptionState}
                     className="mb-4"
+                    etaSeconds={transcriptionEta ?? undefined}
+                    fallbackProgress={transcriptionProgressHint ?? undefined}
                   />
+                  {transcriptionEta && transcriptionEta > 0 && (
+                    <p className="text-xs text-gray-400 text-center">
+                      Estimated remaining time ~{formatDuration(transcriptionEta)}
+                    </p>
+                  )}
                 </div>
 
                 {/* Transcription result */}

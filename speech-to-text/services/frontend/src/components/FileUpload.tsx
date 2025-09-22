@@ -47,7 +47,7 @@ export default function FileUpload({
       'video/*': ['.mp4', '.mov', '.avi', '.mkv', '.webm']
     },
     maxFiles: 1,
-    maxSize: 500 * 1024 * 1024, // 500MB
+    maxSize: 5 * 1024 * 1024 * 1024, // 5GB
     disabled,
     onDragEnter: () => setIsDragActive(true),
     onDragLeave: () => setIsDragActive(false),
@@ -117,7 +117,7 @@ export default function FileUpload({
           
           <div className="text-xs text-gray-400 space-y-1">
             <p>Supported formats: MP3, MP4, WAV, M4A, FLAC, OGG, WEBM, MOV</p>
-            <p>Maximum file size: 500MB</p>
+            <p>Maximum file size: 5GB</p>
           </div>
         </div>
       </MotionDropzone>
@@ -155,7 +155,7 @@ export default function FileUpload({
           className="mt-2 p-3 bg-error-50 border border-error-200 rounded-lg"
         >
           <p className="text-sm text-error-600">
-            File type not supported or file is too large (max 500MB)
+            File type not supported or file is too large (max 5GB)
           </p>
         </motion.div>
       )}

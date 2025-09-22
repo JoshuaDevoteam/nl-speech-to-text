@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     gcs_transcript_bucket: str = os.getenv("GCS_TRANSCRIPT_BUCKET", "pj-speech-text-dev-transcripts")
     
     # Speech-to-Text Settings
-    recognizer_location: str = os.getenv("RECOGNIZER_LOCATION", "us")  # Chirp 3 requires 'us' location
+    recognizer_location: str = os.getenv("RECOGNIZER_LOCATION", "us")  # Chirp 2 supports europe-west4, Chirp 3 requires 'us'
     default_recognizer_id: str = os.getenv("DEFAULT_RECOGNIZER_ID", "dutch-recognizer-1")
     default_language_code: str = os.getenv("DEFAULT_LANGUAGE_CODE", "nl-NL")
     speech_model: str = os.getenv("SPEECH_MODEL", "chirp_3")
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     use_redis: bool = os.getenv("USE_REDIS", "false").lower() == "true"
     
     # File Processing Settings
-    max_file_size_mb: int = int(os.getenv("MAX_FILE_SIZE_MB", "500"))
+    max_file_size_mb: int = int(os.getenv("MAX_FILE_SIZE_MB", "5120"))
     allowed_audio_formats: List[str] = [".mp3", ".wav", ".m4a", ".flac", ".ogg", ".webm"]
     allowed_video_formats: List[str] = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
     

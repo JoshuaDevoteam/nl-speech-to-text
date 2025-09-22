@@ -170,8 +170,10 @@ The frontend communicates with the backend through:
 ```typescript
 import { ApiClient } from '@/lib/api'
 
-// Upload file
-const result = await ApiClient.uploadFile(file)
+// Upload file with progress reporting
+const result = await ApiClient.uploadFile(file, ({ percent }) => {
+  console.log(`Upload progress: ${percent}%`)
+})
 
 // Start transcription
 const response = await ApiClient.startTranscription({
@@ -427,7 +429,7 @@ wscat -c ws://localhost:8000/ws/test-job-id
 **Problem**: Files not uploading or failing
 
 **Solutions:**
-- Check file size (max 500MB)
+- Check file size (max 5GB)
 - Verify file format is supported
 - Check network connectivity
 - Review browser console for errors

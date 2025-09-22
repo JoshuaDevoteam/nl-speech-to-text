@@ -32,22 +32,21 @@ class StorageService:
         filename: str,
         content_type: Optional[str] = None
     ) -> str:
-        """Upload a file to Google Cloud Storage.
-        
+        """Upload a file to Google Cloud Storage from bytes.
+
         Args:
             file_content: File content as bytes
             filename: Name for the file in GCS
             content_type: MIME type of the file
-            
+
         Returns:
             GCS URI of the uploaded file
         """
         blob = self.bucket.blob(filename)
-        
+
         if content_type:
             blob.content_type = content_type
-        
-        # Upload in executor to avoid blocking
+
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(
             None,
@@ -55,7 +54,29 @@ class StorageService:
             file_content,
             content_type
         )
-        
+
+        return f"gs://{self.bucket_name}/{filename}"
+
+    async def upload_file_stream(
+        self,
+        file_obj: BinaryIO,
+        filename: str,
+        content_type: Optional[str] = None
+    ) -> str:
+        """Upload a file-like object to Google Cloud Storage without loading it all into memory."""
+        blob = self.bucket.blob(filename)
+
+        if content_type:
+            blob.content_type = content_type
+
+        loop = asyncio.get_event_loop()
+
+        def _upload():
+            file_obj.seek(0)
+            blob.upload_from_file(file_obj, rewind=True, content_type=content_type)
+
+        await loop.run_in_executor(None, _upload)
+
         return f"gs://{self.bucket_name}/{filename}"
     
     async def download_file(self, gcs_uri: str) -> bytes:

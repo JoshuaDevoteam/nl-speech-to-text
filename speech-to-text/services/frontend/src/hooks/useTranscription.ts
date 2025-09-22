@@ -13,11 +13,169 @@ import toast from 'react-hot-toast'
 export function useTranscription() {
   const [transcriptionState, setTranscriptionState] = useState<TranscriptionState>({})
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadStats, setUploadStats] = useState<{
+    loaded: number
+    total?: number
+    speedBps?: number
+    etaSeconds?: number
+  } | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [transcriptionEta, setTranscriptionEta] = useState<number | null>(null)
+  const [transcriptionProgressHint, setTranscriptionProgressHint] = useState<number | null>(null)
+  const [currentFileSizeBytes, setCurrentFileSizeBytes] = useState<number | undefined>(undefined)
   
   const wsClient = useRef<WebSocketClient | null>(null)
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
+  const uploadStartTime = useRef<number | null>(null)
+  const uploadSmoothedSpeed = useRef<number | null>(null)
+  const uploadLastEvent = useRef<{ loaded: number; timestamp: number } | null>(null)
+  const uploadTicker = useRef<NodeJS.Timeout | null>(null)
+  const uploadRawProgress = useRef<number>(0)
+  const uploadDisplayedProgress = useRef<number>(0)
+  const uploadEtaRef = useRef<number | null>(null)
+  const uploadTotalBytesRef = useRef<number | undefined>(undefined)
+  const uploadExpectedDuration = useRef<number | null>(null)
+  const uploadCompletedRef = useRef<boolean>(false)
+  const uploadLoadedRef = useRef<number>(0)
+
+  const transcriptionStageStart = useRef<number | null>(null)
+  const transcriptionStageExpected = useRef<number | null>(null)
+  const transcriptionLastStatus = useRef<string | undefined>(undefined)
+  const transcriptionEtaTimer = useRef<NodeJS.Timeout | null>(null)
+  const transcriptionProgressRef = useRef<number | undefined>(undefined)
+
+  const estimateUploadDuration = useCallback((sizeBytes?: number) => {
+    if (!sizeBytes) return null
+    const sizeMB = sizeBytes / (1024 * 1024)
+
+    // Assume slower speeds for larger files to avoid overly optimistic ETAs
+    const assumedRateMbPerSec = sizeMB >= 8192
+      ? 0.35
+      : sizeMB >= 4096
+        ? 0.45
+        : sizeMB >= 2048
+          ? 0.55
+          : sizeMB >= 1024
+            ? 0.75
+            : 1.1
+
+    const estimatedSeconds = sizeMB / assumedRateMbPerSec
+    return Math.max(estimatedSeconds, 30)
+  }, [])
+
+  const stopUploadTicker = useCallback(() => {
+    if (uploadTicker.current) {
+      clearInterval(uploadTicker.current)
+      uploadTicker.current = null
+    }
+  }, [])
+
+  const updateUploadUi = useCallback(() => {
+    const totalBytes = uploadTotalBytesRef.current
+    const now = performance.now()
+    const elapsedSeconds = uploadStartTime.current
+      ? (now - uploadStartTime.current) / 1000
+      : 0
+
+    if (!uploadExpectedDuration.current && totalBytes) {
+      uploadExpectedDuration.current = estimateUploadDuration(totalBytes)
+    }
+
+    const expectedDuration = uploadExpectedDuration.current
+    let targetPercent = uploadRawProgress.current
+
+    if (!uploadCompletedRef.current && expectedDuration) {
+      const estimatedPercent = Math.min((elapsedSeconds / expectedDuration) * 100, 92)
+      targetPercent = Math.max(targetPercent, estimatedPercent)
+    }
+
+    if (!uploadCompletedRef.current) {
+      targetPercent = Math.min(targetPercent, 99.5)
+    }
+
+    const currentDisplay = uploadDisplayedProgress.current
+    const diff = targetPercent - currentDisplay
+    let nextDisplay = currentDisplay
+
+    if (diff > 0.1) {
+      const maxStep = uploadCompletedRef.current ? 5 : Math.max(0.35, diff * 0.08)
+      nextDisplay = Math.min(targetPercent, currentDisplay + maxStep)
+    } else if (diff < -0.1) {
+      nextDisplay = targetPercent
+    }
+
+    uploadDisplayedProgress.current = nextDisplay
+
+    const percentRounded = Math.max(0, Math.min(100, Math.round(nextDisplay)))
+    setUploadProgress(percentRounded)
+
+    const displayedLoaded = totalBytes
+      ? Math.min((nextDisplay / 100) * totalBytes, totalBytes)
+      : uploadLoadedRef.current
+
+    const fallbackSpeed = expectedDuration && totalBytes
+      ? totalBytes / Math.max(expectedDuration, elapsedSeconds > 0 ? elapsedSeconds : 1)
+      : undefined
+
+    const speed = uploadSmoothedSpeed.current ?? fallbackSpeed ?? undefined
+
+    const etaSeconds = uploadCompletedRef.current
+      ? 0
+      : uploadEtaRef.current ?? (expectedDuration
+        ? Math.max(expectedDuration - elapsedSeconds, 0)
+        : undefined)
+
+    setUploadStats({
+      loaded: Number.isFinite(displayedLoaded) ? displayedLoaded : uploadLoadedRef.current ?? 0,
+      total: totalBytes,
+      speedBps: speed,
+      etaSeconds,
+    })
+  }, [estimateUploadDuration])
+
+  const startUploadTicker = useCallback((totalBytes?: number) => {
+    uploadTotalBytesRef.current = totalBytes
+    uploadDisplayedProgress.current = 0
+    uploadRawProgress.current = 0
+    uploadLoadedRef.current = 0
+    const initialEstimate = totalBytes ? estimateUploadDuration(totalBytes) : null
+    uploadEtaRef.current = null
+    uploadExpectedDuration.current = initialEstimate
+    uploadCompletedRef.current = false
+
+    stopUploadTicker()
+    updateUploadUi()
+    uploadTicker.current = setInterval(updateUploadUi, 400)
+  }, [estimateUploadDuration, stopUploadTicker, updateUploadUi])
+
+  const getEstimatedStageDuration = useCallback((status?: string) => {
+    if (!status) return null
+    const sizeBytes = transcriptionState.fileSizeBytes ?? currentFileSizeBytes
+    const sizeMB = sizeBytes ? sizeBytes / (1024 * 1024) : undefined
+
+    switch (status) {
+      case 'pending':
+        return 45
+      case 'processing':
+        if (sizeMB) {
+          return Math.min(Math.max(90 + sizeMB * 0.35, 120), 20 * 60)
+        }
+        return 180
+      case 'extracting_audio':
+        if (sizeMB) {
+          return Math.min(Math.max(120 + sizeMB * 0.5, 180), 25 * 60)
+        }
+        return 300
+      case 'transcribing':
+        if (sizeMB) {
+          return Math.min(Math.max(600 + sizeMB * 1.1, 15 * 60), 60 * 60)
+        }
+        return 30 * 60
+      default:
+        return null
+    }
+  }, [transcriptionState.fileSizeBytes, currentFileSizeBytes])
 
   // WebSocket message handler
   const handleWebSocketMessage = useCallback((data: WebSocketMessage) => {
@@ -90,41 +248,139 @@ export function useTranscription() {
   const uploadFile = useCallback(async (file: File): Promise<UploadResult> => {
     setIsUploading(true)
     setUploadProgress(0)
+    setUploadStats({ loaded: 0, total: file.size })
+    setCurrentFileSizeBytes(file.size)
+
+    const start = performance.now()
+    uploadStartTime.current = start
+    uploadLastEvent.current = { loaded: 0, timestamp: start }
+    uploadSmoothedSpeed.current = null
+    uploadCompletedRef.current = false
+    uploadLoadedRef.current = 0
+    uploadRawProgress.current = 0
+
+    startUploadTicker(file.size)
 
     try {
-      // Simulate upload progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev < 90) {
-            return prev + Math.random() * 10
+      const result = await ApiClient.uploadFile(file, ({ percent, loaded, total }) => {
+        const totalBytes = total ?? file.size ?? undefined
+        const clampedLoaded = totalBytes ? Math.min(loaded, totalBytes) : loaded
+        const now = performance.now()
+        const last = uploadLastEvent.current
+
+        let smoothedSpeed = uploadSmoothedSpeed.current ?? null
+
+        if (last) {
+          const deltaBytes = Math.max(0, clampedLoaded - last.loaded)
+          const deltaTimeSeconds = (now - last.timestamp) / 1000
+
+          if (deltaBytes > 0 && deltaTimeSeconds > 0.05) {
+            const instantaneousSpeed = deltaBytes / deltaTimeSeconds
+            const alpha = 0.25
+            smoothedSpeed = smoothedSpeed
+              ? smoothedSpeed + alpha * (instantaneousSpeed - smoothedSpeed)
+              : instantaneousSpeed
+            uploadSmoothedSpeed.current = smoothedSpeed
           }
-          return prev
-        })
-      }, 200)
+        }
 
-      const result = await ApiClient.uploadFile(file)
+        if (!smoothedSpeed && uploadStartTime.current) {
+          const elapsedSeconds = (now - uploadStartTime.current) / 1000
+          if (elapsedSeconds > 0.1 && clampedLoaded > 0) {
+            smoothedSpeed = clampedLoaded / elapsedSeconds
+            uploadSmoothedSpeed.current = smoothedSpeed
+          }
+        }
 
-      clearInterval(progressInterval)
-      setUploadProgress(100)
+        uploadLastEvent.current = { loaded: clampedLoaded, timestamp: now }
+        uploadTotalBytesRef.current = totalBytes ?? uploadTotalBytesRef.current
+        uploadLoadedRef.current = clampedLoaded
+
+        const safePercent = Number.isFinite(percent)
+          ? Math.min(100, Math.max(0, percent))
+          : totalBytes && totalBytes > 0
+            ? Math.min(100, Math.max(0, (clampedLoaded / totalBytes) * 100))
+            : 0
+
+        uploadRawProgress.current = safePercent
+
+        const elapsedSeconds = uploadStartTime.current ? (now - uploadStartTime.current) / 1000 : 0
+
+        if (smoothedSpeed && totalBytes) {
+          const remainingSeconds = Math.max((totalBytes - clampedLoaded) / smoothedSpeed, 0)
+          uploadEtaRef.current = remainingSeconds
+          uploadExpectedDuration.current = Math.max(elapsedSeconds + remainingSeconds, 30)
+        } else if (totalBytes) {
+          const estimate = uploadExpectedDuration.current ?? estimateUploadDuration(totalBytes)
+          uploadExpectedDuration.current = estimate ?? null
+          uploadEtaRef.current = estimate ? Math.max(estimate - elapsedSeconds, 0) : null
+        }
+
+        updateUploadUi()
+      })
+
+      uploadCompletedRef.current = true
+      uploadRawProgress.current = 100
+      uploadLoadedRef.current = file.size
+      uploadEtaRef.current = 0
+      updateUploadUi()
 
       if (result.success) {
+        if (result.data.size) {
+          setCurrentFileSizeBytes(result.data.size)
+        }
         toast.success('File uploaded successfully!')
         setTimeout(() => {
+          stopUploadTicker()
           setIsUploading(false)
           setUploadProgress(0)
-        }, 500)
+          setUploadStats(null)
+          uploadTotalBytesRef.current = undefined
+          uploadExpectedDuration.current = null
+          uploadEtaRef.current = null
+          uploadDisplayedProgress.current = 0
+          uploadRawProgress.current = 0
+          uploadLoadedRef.current = 0
+        }, 750)
       } else {
+        stopUploadTicker()
         setIsUploading(false)
         setUploadProgress(0)
+        setUploadStats(null)
+        setCurrentFileSizeBytes(undefined)
+        uploadCompletedRef.current = true
+        uploadTotalBytesRef.current = undefined
+        uploadExpectedDuration.current = null
+        uploadEtaRef.current = null
+        uploadDisplayedProgress.current = 0
+        uploadRawProgress.current = 0
+        uploadLoadedRef.current = 0
       }
+
+      uploadStartTime.current = null
+      uploadLastEvent.current = null
+      uploadSmoothedSpeed.current = null
 
       return result
     } catch (error) {
+      stopUploadTicker()
       setIsUploading(false)
       setUploadProgress(0)
+      setUploadStats(null)
+      uploadStartTime.current = null
+      uploadLastEvent.current = null
+      uploadSmoothedSpeed.current = null
+      setCurrentFileSizeBytes(undefined)
+      uploadTotalBytesRef.current = undefined
+      uploadExpectedDuration.current = null
+      uploadEtaRef.current = null
+      uploadDisplayedProgress.current = 0
+      uploadRawProgress.current = 0
+      uploadLoadedRef.current = 0
+      uploadCompletedRef.current = true
       throw error
     }
-  }, [])
+  }, [estimateUploadDuration, startUploadTicker, stopUploadTicker, updateUploadUi])
 
   // Start transcription
   const startTranscription = useCallback(async (
@@ -135,7 +391,8 @@ export function useTranscription() {
     setTranscriptionState({
       status: 'pending',
       progress: 0,
-      gcsUri
+      gcsUri,
+      fileSizeBytes: currentFileSizeBytes
     })
 
     try {
@@ -157,7 +414,8 @@ export function useTranscription() {
         jobId: response.job_id,
         status: response.status as any,
         message: response.message,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        fileSizeBytes: currentFileSizeBytes ?? prev.fileSizeBytes
       }))
 
       // Set up WebSocket connection for real-time updates
@@ -190,7 +448,72 @@ export function useTranscription() {
       toast.error('Failed to start transcription')
       throw error
     }
-  }, [handleWebSocketMessage, startPolling])
+  }, [handleWebSocketMessage, startPolling, currentFileSizeBytes])
+
+  // Heuristic ETA for transcription stages when backend progress is limited
+  useEffect(() => {
+    const status = transcriptionState.status
+
+    transcriptionProgressRef.current = transcriptionState.progress ?? undefined
+
+    if (transcriptionState.progress != null) {
+      setTranscriptionProgressHint(null)
+    }
+
+    const expectedSeconds = getEstimatedStageDuration(status)
+
+    if (status && expectedSeconds) {
+
+      if (transcriptionStageStart.current === null || transcriptionLastStatus.current !== status) {
+        transcriptionStageStart.current = Date.now()
+        transcriptionStageExpected.current = expectedSeconds
+        setTranscriptionEta(expectedSeconds)
+        setTranscriptionProgressHint(null)
+        if (transcriptionEtaTimer.current) {
+          clearInterval(transcriptionEtaTimer.current)
+          transcriptionEtaTimer.current = null
+        }
+      }
+
+      if (!transcriptionEtaTimer.current) {
+        transcriptionEtaTimer.current = setInterval(() => {
+          if (!transcriptionStageStart.current || !transcriptionStageExpected.current) return
+          const elapsed = (Date.now() - transcriptionStageStart.current) / 1000
+          const remaining = Math.max(transcriptionStageExpected.current - elapsed, 0)
+          setTranscriptionEta(remaining)
+
+          if (transcriptionProgressRef.current == null) {
+            const pseudoProgress = Math.min((elapsed / transcriptionStageExpected.current) * 100, 99)
+            setTranscriptionProgressHint(pseudoProgress)
+          }
+        }, 1000)
+      }
+    } else {
+      transcriptionStageStart.current = null
+      transcriptionStageExpected.current = null
+      transcriptionProgressRef.current = undefined
+      setTranscriptionEta(null)
+      setTranscriptionProgressHint(null)
+      if (transcriptionEtaTimer.current) {
+        clearInterval(transcriptionEtaTimer.current)
+        transcriptionEtaTimer.current = null
+      }
+    }
+
+    if (status === 'completed') {
+      setTranscriptionEta(0)
+      setTranscriptionProgressHint(100)
+    }
+
+    transcriptionLastStatus.current = status
+
+    return () => {
+      if (transcriptionEtaTimer.current) {
+        clearInterval(transcriptionEtaTimer.current)
+        transcriptionEtaTimer.current = null
+      }
+    }
+  }, [transcriptionState.status, transcriptionState.progress, getEstimatedStageDuration])
 
   // Delete transcription
   const deleteTranscription = useCallback(async (jobId: string) => {
@@ -217,12 +540,35 @@ export function useTranscription() {
       pollingInterval.current = null
     }
 
+    stopUploadTicker()
     // Reset state
     setTranscriptionState({})
     setUploadProgress(0)
+    setUploadStats(null)
     setIsUploading(false)
     setIsTranscribing(false)
-  }, [])
+    uploadStartTime.current = null
+    uploadSmoothedSpeed.current = null
+    uploadLastEvent.current = null
+    uploadTotalBytesRef.current = undefined
+    uploadExpectedDuration.current = null
+    uploadEtaRef.current = null
+    uploadCompletedRef.current = false
+    uploadDisplayedProgress.current = 0
+    uploadRawProgress.current = 0
+    uploadLoadedRef.current = 0
+    transcriptionStageStart.current = null
+    transcriptionStageExpected.current = null
+    transcriptionLastStatus.current = undefined
+    transcriptionProgressRef.current = undefined
+    setTranscriptionEta(null)
+    setTranscriptionProgressHint(null)
+    setCurrentFileSizeBytes(undefined)
+    if (transcriptionEtaTimer.current) {
+      clearInterval(transcriptionEtaTimer.current)
+      transcriptionEtaTimer.current = null
+    }
+  }, [stopUploadTicker])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -233,18 +579,25 @@ export function useTranscription() {
       if (pollingInterval.current) {
         clearInterval(pollingInterval.current)
       }
+      stopUploadTicker()
+      if (transcriptionEtaTimer.current) {
+        clearInterval(transcriptionEtaTimer.current)
+      }
     }
-  }, [])
+  }, [stopUploadTicker])
 
   return {
     transcriptionState,
     uploadProgress,
+    uploadStats,
     isUploading,
     isTranscribing,
     uploadFile,
     startTranscription,
     deleteTranscription,
     fetchTranscriptionStatus,
-    reset
+    reset,
+    transcriptionEta,
+    transcriptionProgressHint,
   }
 }

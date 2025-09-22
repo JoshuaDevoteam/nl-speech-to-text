@@ -132,7 +132,7 @@ class TranscriptionService:
             Transcribed text
         """
         # Use v2 API with recognizer if available
-        if recognizer_id and self.location == "us":
+        if recognizer_id and self.location in ["us", "europe-west4"]:
             return await self._transcribe_v2(gcs_uri, recognizer_id)
         else:
             return await self._transcribe_v1(

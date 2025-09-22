@@ -14,7 +14,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 // Create axios instance with default configuration
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // 60 seconds
+  timeout: 30 * 60 * 1000, // 30 minutes
+  maxBodyLength: Infinity,
+  maxContentLength: Infinity,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,8 +43,8 @@ api.interceptors.response.use(
     console.error('API Response Error:', error)
     
     // Handle common error cases
-    if (error.response?.status === 413) {
-      throw new Error('File too large. Maximum size is 500MB.')
+    if (error.response?.status === 413 || error.response?.status === 400) {
+      throw new Error('File too large. Maximum size is 5GB.')
     } else if (error.response?.status === 429) {
       throw new Error('Too many requests. Please try again later.')
     } else if (error.response?.status >= 500) {
@@ -59,7 +61,10 @@ export class ApiClient {
   /**
    * Upload a file to the backend
    */
-  static async uploadFile(file: File): Promise<UploadResult> {
+  static async uploadFile(
+    file: File,
+    onProgress?: (progress: { percent: number; loaded: number; total?: number }) => void
+  ): Promise<UploadResult> {
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -69,13 +74,21 @@ export class ApiClient {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
-          // This could be used for upload progress tracking
-          if (progressEvent.total) {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            )
-            console.log(`Upload progress: ${percentCompleted}%`)
+          const total = progressEvent.total ?? file.size ?? undefined
+          const loaded = progressEvent.loaded
+          let percentCompleted: number
+
+          if (total && total > 0) {
+            percentCompleted = Math.round((loaded * 100) / total)
+          } else if (file.size) {
+            percentCompleted = Math.round((loaded * 100) / file.size)
+          } else {
+            percentCompleted = 0
           }
+
+          percentCompleted = Math.min(percentCompleted, 100)
+          console.log(`Upload progress: ${percentCompleted}%`)
+          onProgress?.({ percent: percentCompleted, loaded, total })
         },
       })
 

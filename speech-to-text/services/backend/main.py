@@ -83,7 +83,7 @@ async def upload_file(
         Upload response with GCS URI and file metadata
     """
     try:
-        print(f"DEBUG: Received file upload - {file.filename}, size: {file.size}, type: {file.content_type}")
+        print(f"DEBUG: Received file upload - {file.filename}, size: {getattr(file, 'size', 'unknown')}, type: {file.content_type}")
         
         # Validate file type
         allowed_extensions = ['.mp3', '.mp4', '.wav', '.m4a', '.flac', '.ogg', '.webm', '.mov']
@@ -97,27 +97,45 @@ async def upload_file(
                 detail=f"File type {file_extension} not supported. Allowed types: {allowed_extensions}"
             )
         
+        # Determine file size safely using underlying spooled file
+        file.file.seek(0, os.SEEK_END)
+        file_size = file.file.tell()
+        file.file.seek(0)
+
+        max_file_size = settings.get_max_file_size_bytes()
+        print(f"DEBUG: File size resolved to {file_size} bytes")
+
+        if file_size > max_file_size:
+            max_gb = settings.max_file_size_mb / 1024
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"File too large. Maximum size is {max_gb:.0f}GB "
+                    f"({settings.max_file_size_mb}MB)."
+                )
+            )
+
         # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}_{file.filename}"
-        
+
         print(f"DEBUG: Generated filename: {unique_filename}")
         print(f"DEBUG: About to upload to GCS...")
-        
-        # Upload to GCS
-        gcs_uri = await storage_service.upload_file(
-            file_content=await file.read(),
+
+        # Upload to GCS without loading entire file into memory
+        gcs_uri = await storage_service.upload_file_stream(
+            file_obj=file.file,
             filename=unique_filename,
             content_type=file.content_type
         )
-        
+
         print(f"DEBUG: Upload successful, GCS URI: {gcs_uri}")
-        
+
         return UploadResponse(
             gcs_uri=gcs_uri,
             filename=unique_filename,
             original_filename=file.filename,
-            size=file.size,
+            size=file_size,
             content_type=file.content_type
         )
         
