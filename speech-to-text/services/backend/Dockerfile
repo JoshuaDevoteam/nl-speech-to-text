@@ -3,20 +3,20 @@
 # Stage 1: Build stage with UV
 FROM python:3.11-slim as builder
 
-# Install UV
-RUN pip install uv
+# Copy UV from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set UV environment variables
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY pyproject.toml .
-COPY requirements.txt .
+# Copy all project files
+COPY . .
 
-# Create virtual environment and install dependencies with UV
-RUN uv venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN uv pip sync pyproject.toml
+# Install dependencies with UV
+RUN uv sync --frozen --no-dev
 
 # Stage 2: Runtime stage
 FROM python:3.11-slim
@@ -31,23 +31,23 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
-
 # Set environment variables
-ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
-
-# Create non-root user
-RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /opt/venv
+    PORT=8000 \
+    PATH="/app/.venv/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv ./.venv
+
 # Copy application code
-COPY --chown=appuser:appuser . .
+COPY --from=builder /app .
+
+# Create non-root user
+RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
