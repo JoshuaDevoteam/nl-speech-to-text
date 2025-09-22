@@ -36,7 +36,7 @@ steps:
       - --image=${_ARTIFACT_REGISTRY_CONTAINERS_URL}/speech-frontend:${SHORT_SHA}
       - --region=${_REGION}
       - --project=$PROJECT_ID
-      - --service-account=sa-frontend@$PROJECT_ID.iam.gserviceaccount.com
+      - --service-account=sa-frontend-dev@$PROJECT_ID.iam.gserviceaccount.com
       - --set-env-vars=NEXT_PUBLIC_API_URL=${_BACKEND_URL},NEXT_PUBLIC_WS_URL=${_BACKEND_WS_URL},NODE_ENV=production
       - --allow-unauthenticated
       - --cpu=1
