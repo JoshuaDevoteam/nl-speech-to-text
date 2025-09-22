@@ -32,8 +32,15 @@ buckets = {
     name = "pj-speech-text-prod-genai-frontend"
     region = "europe-west1"
   }
+  audio_uploads = {
+    name = "pj-speech-text-prod-audio-uploads"
+    region = "europe-west1"
+  }
+  transcripts = {
+    name = "pj-speech-text-prod-transcripts"
+    region = "europe-west1"
+  }
 }
-environment = ""
 project_id = "pj-speech-text-prod"
 repo_name = "nl-speech-to-text"
 repo_owner = "JoshuaDevoteam"
@@ -51,15 +58,28 @@ service_accounts = {
     create = false
     email = "sa-frontend-prod@pj-speech-text-prod.iam.gserviceaccount.com"
   }
+  sa-backend-prod = {
+    create = false
+    email = "sa-backend-prod@pj-speech-text-prod.iam.gserviceaccount.com"
+  }
 }
 cloud_build = {
   frontend = {
     included = [
-      "services/frontend/**"
+      "speech-to-text/services/frontend/**"
     ]
-    path = "services/frontend/cloudbuild.yaml"
+    path = "speech-to-text/services/frontend/cloudbuild.yaml"
     substitutions = {
-      _SERVICE_NAME = "frontend"
+      _SERVICE_NAME = "speech-frontend"
+    }
+  }
+  backend = {
+    included = [
+      "speech-to-text/services/backend/**"
+    ]
+    path = "speech-to-text/services/backend/cloudbuild.yaml"
+    substitutions = {
+      _SERVICE_NAME = "speech-backend"
     }
   }
 }
@@ -68,9 +88,20 @@ cloud_run = {
     location = "europe-west1"
     service_account = "sa-frontend-prod"
     cpu = "1"
-    memory = "4Gi"
+    memory = "2Gi"
     sa = {
       sa-frontend-prod = [
+        "roles/run.invoker"
+      ]
+    }
+  }
+  backend = {
+    location = "europe-west1"
+    service_account = "sa-backend-prod"
+    cpu = "2"
+    memory = "4Gi"
+    sa = {
+      sa-backend-prod = [
         "roles/run.invoker"
       ]
     }

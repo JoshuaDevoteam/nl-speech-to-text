@@ -1,0 +1,53 @@
+steps:
+  # Build Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    dir: "speech-to-text/services/backend"
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        branch_name=$BRANCH_NAME
+        branch=${branch_name//\//-}
+        docker build -t ${_ARTIFACT_REGISTRY_CONTAINERS_URL}/speech-backend:latest \
+          -t ${_ARTIFACT_REGISTRY_CONTAINERS_URL}/speech-backend:$SHORT_SHA \
+          -t ${_ARTIFACT_REGISTRY_CONTAINERS_URL}/speech-backend:$branch \
+          --network=cloudbuild .
+
+  # Push all tags to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    dir: "speech-to-text/services/backend"
+    entrypoint: docker
+    args: [
+      "push",
+      "-a",
+      "${_ARTIFACT_REGISTRY_CONTAINERS_URL}/speech-backend",
+    ]
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    dir: "speech-to-text/services/backend"
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "speech-backend"
+      - --image=${_ARTIFACT_REGISTRY_CONTAINERS_URL}/speech-backend:${SHORT_SHA}
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+      - --service-account=sa-backend@$PROJECT_ID.iam.gserviceaccount.com
+      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,GCP_LOCATION=${_REGION},CORS_ORIGINS=https://speech-frontend-*.run.app
+      - --allow-unauthenticated
+      - --cpu=2
+      - --memory=4Gi
+      - --max-instances=10
+      - --min-instances=1
+      - --port=8000
+      - --timeout=3600
+
+substitutions:
+  _ARTIFACT_REGISTRY_CONTAINERS_URL: europe-west1-docker.pkg.dev/${PROJECT_ID}/pipeline-containers
+  _REGION: europe-west1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'

@@ -60,16 +60,43 @@ ai_service_accounts = {
     create = true
     name = "frontend-dev"
     gcp_project_id = "pj-speech-text-dev"
+    description = "Frontend service account for DEV"
+    display_name = "Frontend service account for DEV"
   }
   sa-frontend-uat = {
     create = true
     name = "frontend-uat"
     gcp_project_id = "pj-speech-text-uat"
+    description = "Frontend service account for UAT"
+    display_name = "Frontend service account for UAT"
   }
   sa-frontend-prod = {
     create = true
     name = "frontend-prod"
     gcp_project_id = "pj-speech-text-prod"
+    description = "Frontend service account for PROD"
+    display_name = "Frontend service account for PROD"
+  }
+  sa-backend-dev = {
+    create = true
+    name = "backend-dev"
+    gcp_project_id = "pj-speech-text-dev"
+    description = "Backend service account for DEV with Speech-to-Text access"
+    display_name = "Backend service account for DEV"
+  }
+  sa-backend-uat = {
+    create = true
+    name = "backend-uat"
+    gcp_project_id = "pj-speech-text-uat"
+    description = "Backend service account for UAT with Speech-to-Text access"
+    display_name = "Backend service account for UAT"
+  }
+  sa-backend-prod = {
+    create = true
+    name = "backend-prod"
+    gcp_project_id = "pj-speech-text-prod"
+    description = "Backend service account for PROD with Speech-to-Text access"
+    display_name = "Backend service account for PROD"
   }
 }
 ai_tfstates = {
@@ -119,6 +146,11 @@ ai_projects = {
         "roles/storage.objectViewer",
         "roles/aiplatform.user"
       ]
+      sa-backend-dev = [
+        "roles/storage.objectAdmin",
+        "roles/speech.client",
+        "roles/aiplatform.user"
+      ]
     }
   }
   pj-speech-text-uat = {
@@ -141,6 +173,11 @@ ai_projects = {
         "roles/storage.objectViewer",
         "roles/aiplatform.user"
       ]
+      sa-backend-uat = [
+        "roles/storage.objectAdmin",
+        "roles/speech.client",
+        "roles/aiplatform.user"
+      ]
     }
   }
   pj-speech-text-prod = {
@@ -161,6 +198,11 @@ ai_projects = {
       ]
       sa-frontend-prod = [
         "roles/storage.objectViewer",
+        "roles/aiplatform.user"
+      ]
+      sa-backend-prod = [
+        "roles/storage.objectAdmin",
+        "roles/speech.client",
         "roles/aiplatform.user"
       ]
     }
