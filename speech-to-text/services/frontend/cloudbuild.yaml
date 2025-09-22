@@ -51,8 +51,8 @@ substitutions:
   _ARTIFACT_REGISTRY_CONTAINERS_URL: europe-west1-docker.pkg.dev/${PROJECT_ID}/pipeline-containers
   _REGION: europe-west1
   _PROJECT_NUMBER: ${PROJECT_NUMBER}
-  _BACKEND_URL: https://speech-backend-${_PROJECT_NUMBER}.${_REGION}.run.app
-  _BACKEND_WS_URL: wss://speech-backend-${_PROJECT_NUMBER}.${_REGION}.run.app
+  _BACKEND_URL: https://speech-backend-zkeanislmq-ew.a.run.app
+  _BACKEND_WS_URL: wss://speech-backend-zkeanislmq-ew.a.run.app
 
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # CORS Settings - Use explicit environment variable handling
     _cors_origins_env: Optional[str] = os.getenv("CORS_ORIGINS")
-    cors_origin_regex: Optional[str] = os.getenv("CORS_ORIGIN_REGEX")
+    _cors_origin_regex_env: Optional[str] = os.getenv("CORS_ORIGIN_REGEX")
     
     @property
     def cors_origins(self) -> List[str]:
@@ -41,7 +41,15 @@ class Settings(BaseSettings):
             explicit_origins = [origin for origin in raw_origins if '*' not in origin]
             return explicit_origins
         # Default fallback
-        return ["http://localhost:3000", "http://localhost:3001"]
+        defaults = ["http://localhost:3000", "http://localhost:3001"]
+        defaults.append(f"https://speech-frontend-{self.gcp_project_id}.{self.gcp_location}.run.app")
+        return defaults
+
+    @property
+    def cors_origin_regex(self) -> Optional[str]:
+        if self._cors_origin_regex_env:
+            return self._cors_origin_regex_env
+        return rf"https://speech-frontend-[a-z0-9-]+\.{self.gcp_location}\.run\.app"
     
     # Authentication Settings (optional)
     service_account_path: Optional[str] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
