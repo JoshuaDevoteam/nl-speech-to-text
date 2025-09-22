@@ -1,10 +1,19 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { forwardRef, useCallback, useState } from 'react'
+import type { HTMLAttributes } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { CloudArrowUpIcon, DocumentIcon, FilmIcon } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
+
+const MotionDropzone = motion(
+  forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+    function MotionDropzone(props, ref) {
+      return <div ref={ref} {...props} />
+    }
+  )
+)
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void
@@ -61,10 +70,19 @@ export default function FileUpload({
     return <DocumentIcon className="h-8 w-8 text-primary-500" />
   }
 
+  const {
+    onAnimationStart: _onAnimationStart,
+    onAnimationEnd: _onAnimationEnd,
+    onDrag: _onDrag,
+    onDragStart: _onDragStart,
+    onDragEnd: _onDragEnd,
+    ...rootProps
+  } = getRootProps()
+
   return (
     <div className={clsx('w-full', className)}>
-      <motion.div
-        {...getRootProps()}
+      <MotionDropzone
+        {...rootProps}
         className={clsx(
           'dropzone',
           {
@@ -102,7 +120,7 @@ export default function FileUpload({
             <p>Maximum file size: 500MB</p>
           </div>
         </div>
-      </motion.div>
+      </MotionDropzone>
 
       {/* File preview */}
       {acceptedFiles.length > 0 && (

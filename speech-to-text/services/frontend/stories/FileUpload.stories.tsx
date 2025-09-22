@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { fn } from '@storybook/test'
 import FileUpload from '@/components/FileUpload'
 
+const onFileSelectAction = fn<(file: File) => void>()
+
 const meta = {
   title: 'Components/FileUpload',
   component: FileUpload,
@@ -29,7 +31,7 @@ const meta = {
     },
   },
   args: {
-    onFileSelect: fn(),
+    onFileSelect: onFileSelectAction,
   },
 } satisfies Meta<typeof FileUpload>
 
@@ -73,15 +75,21 @@ export const WithCustomClassName: Story = {
 export const Interactive: Story = {
   args: {
     disabled: false,
-    onFileSelect: (file: File) => {
-      console.log('File selected:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-      })
-      alert(`File selected: ${file.name} (${file.type})`)
-    },
   },
+  render: (args) => (
+    <FileUpload
+      {...args}
+      onFileSelect={(file: File) => {
+        console.log('File selected:', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        })
+        alert(`File selected: ${file.name} (${file.type})`)
+        args.onFileSelect?.(file)
+      }}
+    />
+  ),
   parameters: {
     docs: {
       description: {

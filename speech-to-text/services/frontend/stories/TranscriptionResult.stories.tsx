@@ -3,6 +3,8 @@ import { fn } from '@storybook/test'
 import TranscriptionResult from '@/components/TranscriptionResult'
 import type { TranscriptionState } from '@/types/transcription'
 
+const onNewUploadAction = fn<() => void>()
+
 const meta = {
   title: 'Components/TranscriptionResult',
   component: TranscriptionResult,
@@ -26,7 +28,7 @@ const meta = {
     },
   },
   args: {
-    onNewUpload: fn(),
+    onNewUpload: onNewUploadAction,
   },
 } satisfies Meta<typeof TranscriptionResult>
 
@@ -46,7 +48,7 @@ export const BasicResult: Story = {
       createdAt: new Date(Date.now() - 120000).toISOString(),
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/audio-file.mp3',
-    } as TranscriptionState,
+    } satisfies TranscriptionState,
   },
   parameters: {
     docs: {
@@ -67,7 +69,7 @@ export const LongTranscript: Story = {
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/long-audio-file.mp3',
       transcriptUri: 'gs://bucket/transcripts/transcript-67890.txt',
-    } as TranscriptionState,
+    } satisfies TranscriptionState,
   },
   parameters: {
     docs: {
@@ -87,7 +89,7 @@ export const WithoutNewUploadButton: Story = {
       createdAt: new Date(Date.now() - 60000).toISOString(),
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/audio-file.mp3',
-    } as TranscriptionState,
+    } satisfies TranscriptionState,
     onNewUpload: undefined,
   },
   parameters: {
@@ -109,7 +111,7 @@ export const WithTranscriptUri: Story = {
       createdAt: new Date(Date.now() - 180000).toISOString(),
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/audio-file.wav',
-    } as TranscriptionState,
+    } satisfies TranscriptionState,
   },
   parameters: {
     docs: {
@@ -129,7 +131,7 @@ export const RecentCompletion: Story = {
       createdAt: new Date(Date.now() - 10000).toISOString(),
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/test-audio.mp3',
-    } as TranscriptionState,
+    } satisfies TranscriptionState,
   },
   parameters: {
     docs: {
@@ -149,7 +151,7 @@ export const WithCustomClassName: Story = {
       createdAt: new Date(Date.now() - 90000).toISOString(),
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/custom-audio.mp3',
-    } as TranscriptionState,
+    } satisfies TranscriptionState,
     className: 'max-w-2xl',
   },
   parameters: {
@@ -172,11 +174,17 @@ export const Interactive: Story = {
       completedAt: new Date().toISOString(),
       gcsUri: 'gs://bucket/interactive-demo.mp4',
       transcriptUri: 'gs://bucket/transcripts/interactive-demo.txt',
-    } as TranscriptionState,
-    onNewUpload: () => {
-      alert('New upload requested!')
-    },
+    } satisfies TranscriptionState,
   },
+  render: (args) => (
+    <TranscriptionResult
+      {...args}
+      onNewUpload={() => {
+        alert('New upload requested!')
+        args.onNewUpload?.()
+      }}
+    />
+  ),
   parameters: {
     docs: {
       description: {

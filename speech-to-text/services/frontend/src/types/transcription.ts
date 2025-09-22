@@ -12,17 +12,17 @@ export interface TranscriptionState {
   gcsUri?: string
 }
 
-export interface UploadResult {
-  success: boolean
-  data?: {
-    gcs_uri: string
-    filename: string
-    original_filename: string
-    size?: number
-    content_type?: string
-  }
-  error?: string
+export interface UploadedFileData {
+  gcs_uri: string
+  filename: string
+  original_filename: string
+  size?: number
+  content_type?: string
 }
+
+export type UploadResult =
+  | { success: true; data: UploadedFileData }
+  | { success: false; error: string }
 
 export interface TranscriptionOptions {
   language_code?: string
