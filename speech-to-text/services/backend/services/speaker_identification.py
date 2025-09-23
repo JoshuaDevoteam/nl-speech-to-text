@@ -123,13 +123,10 @@ class SpeakerIdentificationService:
 
                 unique_speakers.add(speaker_label)
 
-                text_value = refined_text or segment.text
-                if not text_value:
-                    text_value = segment.text
-
                 final_segments.append({
                     "speaker": speaker_label,
-                    "text": text_value,
+                    "text": segment.text,
+                    "refined_text": refined_text,
                     "start_index": segment.start_index,
                     "end_index": segment.end_index,
                     "confidence": confidence,
@@ -443,8 +440,10 @@ Richtlijnen:
                 {
                     "speaker": "Onbekende Spreker",
                     "text": transcript,
+                    "refined_text": transcript,
                     "start_index": 0,
-                    "end_index": len(transcript)
+                    "end_index": len(transcript),
+                    "segment_id": 1
                 }
             ],
             "confidence": "low",
@@ -467,7 +466,8 @@ Richtlijnen:
         
         for segment in identification_result["segments"]:
             speaker = segment["speaker"]
-            text = segment["text"].strip()
+            text_value = segment.get("refined_text") or segment.get("text") or ""
+            text = text_value.strip()
             
             if text:
                 formatted_parts.append(f"{speaker}: {text}")
@@ -507,7 +507,8 @@ Richtlijnen:
         refined_parts: List[str] = []
 
         for segment in segments:
-            text = (segment.get("text") or "").strip()
+            text_source = segment.get("refined_text") or segment.get("text") or ""
+            text = text_source.strip()
             if text:
                 refined_parts.append(text)
 

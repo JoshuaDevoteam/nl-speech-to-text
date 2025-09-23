@@ -48,7 +48,6 @@ export default function TranscriptionResult({
   const hasRefinedTranscript = !!refinedTranscript && refinedTranscript.trim() && refinedTranscript.trim() !== baseTranscript.trim()
   const [transcriptView, setTranscriptView] = useState<'original' | 'refined'>('original')
   const segments = transcriptSegments || []
-
   useEffect(() => {
     if (!hasRefinedTranscript) {
       setTranscriptView('original')
@@ -256,19 +255,24 @@ export default function TranscriptionResult({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {segments.map((segment, index) => (
-                  <tr key={`${segment.start_seconds ?? 0}-${index}`} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-700 font-mono text-xs">
-                      {formatTimeRange(segment.start_seconds, segment.end_seconds)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-700">
-                      {segment.confidence != null ? segment.confidence.toFixed(2) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-800">
-                      {segment.text}
-                    </td>
-                  </tr>
-                ))}
+                {segments.map((segment, index) => {
+                  const refinedTextForRow = isRefinedView && segment.refined_text
+                    ? segment.refined_text
+                    : segment.text
+                  return (
+                    <tr key={`${segment.start_seconds ?? 0}-${segment.segment_id ?? index}`} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-700 font-mono text-xs">
+                        {formatTimeRange(segment.start_seconds, segment.end_seconds)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-700">
+                        {segment.confidence != null ? segment.confidence.toFixed(2) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-800">
+                        {refinedTextForRow}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

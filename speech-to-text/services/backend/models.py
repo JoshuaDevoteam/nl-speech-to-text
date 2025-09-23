@@ -17,11 +17,13 @@ class TranscriptWord(BaseModel):
 class TranscriptSegment(BaseModel):
     """Segment-level transcription data with timing and confidence."""
 
+    segment_id: Optional[int] = Field(None, description="Sequential segment index")
     start_seconds: Optional[float] = Field(None, description="Segment start time in seconds")
     end_seconds: Optional[float] = Field(None, description="Segment end time in seconds")
     confidence: Optional[float] = Field(None, description="Confidence score (0-1)")
     text: str = Field(..., description="Transcript text for the segment")
     words: Optional[List[TranscriptWord]] = Field(None, description="Word-level details")
+    refined_text: Optional[str] = Field(None, description="Refined text variant for this segment")
 
 
 class TranscriptionRequest(BaseModel):

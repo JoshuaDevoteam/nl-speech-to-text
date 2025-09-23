@@ -9,7 +9,7 @@ from google.cloud.speech_v2.types import cloud_speech
 
 # --- Configuration ---
 GCS_BUCKET_NAME = "gcs-pj-speech-text-dev-audio-uploads" # 👈 Replace with your bucket name
-RECOGNIZER_ID = "dutch-recognizer-2" # 👈 Replace with your recognizer ID
+RECOGNIZER_ID = "dutch-recognizer-3" # 👈 Replace with your recognizer ID
 GCP_PROJECT_ID = "pj-speech-text-dev" # 👈 Replace with your GCP project ID
 
 def check_recognizer_exists(project_id: str, location: str, recognizer_id: str) -> bool:

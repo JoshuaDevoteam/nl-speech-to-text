@@ -101,7 +101,7 @@ GCS_TRANSCRIPT_BUCKET=pj-speech-text-dev-transcripts
 
 # Speech-to-Text Settings
 RECOGNIZER_LOCATION=us  # Chirp 3 requires 'us' location
-DEFAULT_RECOGNIZER_ID=dutch-recognizer-1
+DEFAULT_RECOGNIZER_ID=dutch-recognizer-3
 DEFAULT_LANGUAGE_CODE=nl-NL
 SPEECH_MODEL=chirp_3
 

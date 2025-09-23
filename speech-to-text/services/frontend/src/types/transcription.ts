@@ -6,11 +6,13 @@ export interface TranscriptWord {
 }
 
 export interface TranscriptSegment {
+  segment_id?: number
   start_seconds?: number | null
   end_seconds?: number | null
   confidence?: number | null
   text: string
   words?: TranscriptWord[] | null
+  refined_text?: string | null
 }
 
 export interface TranscriptionState {

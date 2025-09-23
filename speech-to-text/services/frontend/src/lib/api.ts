@@ -206,6 +206,7 @@ export class WebSocketClient {
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectDelay = 1000
+  private shouldReconnect = true
 
   constructor(
     jobId: string,
@@ -220,9 +221,10 @@ export class WebSocketClient {
   }
 
   connect() {
+    this.shouldReconnect = true
     const wsUrl = (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000')
       .replace('http', 'ws')
-    
+
     this.ws = new WebSocket(`${wsUrl}/ws/${this.jobId}`)
 
     this.ws.onopen = () => {
@@ -247,7 +249,9 @@ export class WebSocketClient {
     this.ws.onclose = () => {
       console.log(`WebSocket closed for job ${this.jobId}`)
       this.onClose()
-      this.attemptReconnect()
+      if (this.shouldReconnect) {
+        this.attemptReconnect()
+      }
     }
   }
 
@@ -267,6 +271,7 @@ export class WebSocketClient {
   }
 
   disconnect() {
+    this.shouldReconnect = false
     if (this.ws) {
       this.ws.close()
       this.ws = null
@@ -275,6 +280,10 @@ export class WebSocketClient {
 
   isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN
+  }
+
+  markComplete() {
+    this.shouldReconnect = false
   }
 }
 

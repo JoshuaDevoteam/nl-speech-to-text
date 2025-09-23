@@ -70,6 +70,8 @@ class TranscriptionService:
         segments: List[Dict[str, Any]] = []
         transcript_parts: List[str] = []
 
+        segment_index = 0
+
         for result in results:
             if not getattr(result, "alternatives", None):
                 continue
@@ -110,12 +112,16 @@ class TranscriptionService:
             except (TypeError, ValueError):
                 confidence_value = None
 
+            segment_index += 1
+
             segments.append({
                 "start_seconds": start_seconds,
                 "end_seconds": end_seconds,
                 "confidence": confidence_value,
                 "text": text,
                 "words": word_payload or None,
+                "refined_text": None,
+                "segment_id": segment_index,
             })
 
             transcript_parts.append(text)
@@ -178,8 +184,11 @@ class TranscriptionService:
                     model=model,
                     language_codes=language_codes,
                     features=cloud_speech.RecognitionFeatures(
-                        enable_automatic_punctuation=True
+                        enable_automatic_punctuation=True,
+                        enable_word_confidence=True,
+                        enable_word_time_offsets=True,
                     ),
+                    auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
                 ),
             ),
         )
@@ -248,6 +257,7 @@ class TranscriptionService:
         speaker_transcript: Optional[str] = None
         speaker_summary: Optional[Dict[str, Any]] = None
         refined_transcript: Optional[str] = None
+        llm_segments: List[Dict[str, Any]] = []
 
         # Apply speaker identification if enabled
         if enable_speaker_identification:
@@ -256,10 +266,83 @@ class TranscriptionService:
                 speaker_transcript = self.speaker_identification.format_transcript_with_speakers(identification_result)
                 speaker_summary = self.speaker_identification.get_speaker_summary(identification_result)
                 refined_transcript = self.speaker_identification.get_refined_transcript(identification_result)
+                llm_segments = identification_result.get("segments", []) or []
             except Exception as e:
                 print(f"Speaker identification failed: {e}")
 
+        if llm_segments:
+            refined_values = [
+                (segment.get("refined_text") or segment.get("text") or "").strip()
+                for segment in llm_segments
+                if (segment.get("refined_text") or segment.get("text"))
+            ]
+
+            if refined_values:
+                refined_assignments = self._align_refined_segments(refined_values, transcript_segments)
+                for segment, refined_value in zip(transcript_segments, refined_assignments):
+                    if refined_value:
+                        segment["refined_text"] = refined_value
+
         return transcript, transcript_segments, speaker_transcript, speaker_summary, refined_transcript
+
+    def _align_refined_segments(
+        self,
+        refined_segments: List[str],
+        base_segments: List[Dict[str, Any]]
+    ) -> List[Optional[str]]:
+        """Distribute refined text segments over base transcript segments."""
+
+        if not base_segments:
+            return []
+
+        if not refined_segments:
+            return [None] * len(base_segments)
+
+        # Calculate reference lengths using original text
+        base_lengths = [len((segment.get("text") or "").strip()) or 1 for segment in base_segments]
+        total_base = sum(base_lengths) or 1
+        total_refined = sum(len(value) for value in refined_segments) or 1
+
+        refined_assignments: List[Optional[str]] = []
+        refined_index = 0
+
+        for i, base_len in enumerate(base_lengths):
+            if refined_index >= len(refined_segments):
+                refined_assignments.append(None)
+                continue
+
+            target_chars = (base_len / total_base) * total_refined
+            collected: List[str] = []
+            collected_chars = 0
+
+            while refined_index < len(refined_segments):
+                segment_text = refined_segments[refined_index]
+                segment_len = len(segment_text)
+
+                # Always take at least one segment per base slot
+                if not collected:
+                    collected.append(segment_text)
+                    collected_chars += segment_len
+                    refined_index += 1
+                    continue
+
+                # Decide whether to add another refined piece based on relative length
+                if collected_chars >= target_chars or i == len(base_lengths) - 1:
+                    break
+
+                collected.append(segment_text)
+                collected_chars += segment_len
+                refined_index += 1
+
+            if i == len(base_lengths) - 1 and refined_index < len(refined_segments):
+                remaining = " ".join(refined_segments[refined_index:]).strip()
+                if remaining:
+                    collected.append(remaining)
+                refined_index = len(refined_segments)
+
+            refined_assignments.append(" ".join(collected).strip())
+
+        return refined_assignments
     
     async def _transcribe_v2(
         self,
@@ -293,6 +376,7 @@ class TranscriptionService:
             language_codes=[language_code or self.settings.default_language_code],
             model=self.settings.speech_model,
             features=features,
+            max_alternatives=1,
         )
         
         # Create file metadata
@@ -353,6 +437,7 @@ class TranscriptionService:
             "enable_automatic_punctuation": True,
             "enable_word_time_offsets": True,
             "enable_word_confidence": True,
+            "max_alternatives": 1,
         }
 
         encoding = self._determine_audio_encoding(gcs_uri)

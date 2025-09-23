@@ -17,10 +17,10 @@ class Settings(BaseSettings):
     gcs_transcript_bucket: str = os.getenv("GCS_TRANSCRIPT_BUCKET", "pj-speech-text-dev-transcripts")
     
     # Speech-to-Text Settings
-    recognizer_location: str = os.getenv("RECOGNIZER_LOCATION", "us")  # Chirp 2 supports europe-west4, Chirp 3 requires 'us'
-    default_recognizer_id: str = os.getenv("DEFAULT_RECOGNIZER_ID", "dutch-recognizer-1")
+    recognizer_location: str = os.getenv("RECOGNIZER_LOCATION", "europe-west4")
+    default_recognizer_id: str = os.getenv("DEFAULT_RECOGNIZER_ID", "dutch-recognizer-3")
     default_language_code: str = os.getenv("DEFAULT_LANGUAGE_CODE", "nl-NL")
-    speech_model: str = os.getenv("SPEECH_MODEL", "chirp_3")
+    speech_model: str = os.getenv("SPEECH_MODEL", "chirp_2")
     
     # Application Settings
     app_name: str = "speech-to-text-backend"

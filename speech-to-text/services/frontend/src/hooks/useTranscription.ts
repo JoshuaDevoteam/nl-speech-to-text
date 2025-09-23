@@ -222,6 +222,9 @@ export function useTranscription() {
 
     // Handle completion
     if (data.status === 'completed' || data.status === 'failed') {
+      if (wsClient.current) {
+        wsClient.current.markComplete()
+      }
       setIsTranscribing(false)
       
       // Fetch final results
