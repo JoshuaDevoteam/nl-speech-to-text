@@ -239,10 +239,23 @@ class TranscriptionService:
         use_diarization = enable_diarization and not enable_speaker_identification
         
         # Use v2 API with recognizer if available
-        if recognizer_id and self.location in ["us", "europe-west4"]:
+        recognizer_to_use = recognizer_id or self.settings.default_recognizer_id
+        print(
+            "Transcription configuration:",
+            {
+                "recognizer_id": recognizer_id,
+                "recognizer_to_use": recognizer_to_use,
+                "location": self.location,
+                "speech_model": self.settings.speech_model,
+                "using_v2": bool(recognizer_to_use and self.location in ["us", "europe-west4"]),
+                "language_code": language_code,
+            }
+        )
+
+        if recognizer_to_use and self.location in ["us", "europe-west4"]:
             transcript, transcript_segments = await self._transcribe_v2(
                 gcs_uri,
-                recognizer_id,
+                recognizer_to_use,
                 language_code or self.settings.default_language_code
             )
         else:
@@ -376,7 +389,14 @@ class TranscriptionService:
             language_codes=[language_code or self.settings.default_language_code],
             model=self.settings.speech_model,
             features=features,
-            max_alternatives=1,
+        )
+        print(
+            "V2 recognition request:",
+            {
+                "recognizer": recognizer_name,
+                "language_codes": config.language_codes,
+                "model": config.model,
+            }
         )
         
         # Create file metadata
@@ -439,6 +459,14 @@ class TranscriptionService:
             "enable_word_confidence": True,
             "max_alternatives": 1,
         }
+        print(
+            "Using v1 transcription:",
+            {
+                "location": self.location,
+                "language_code": language_code,
+                "config": config_dict,
+            }
+        )
 
         encoding = self._determine_audio_encoding(gcs_uri)
         if encoding is not None:
