@@ -78,7 +78,9 @@ export default function ProgressBar({
       case 'transcribing':
         return 'Transcribing speech...'
       case 'completed':
-        return 'Transcription completed successfully!'
+        return transcriptionState?.fileName 
+          ? `Transcription completed successfully: ${transcriptionState.fileName}!`
+          : 'Transcription completed successfully!'
       case 'failed':
         return 'Transcription failed. Please try again.'
       default:

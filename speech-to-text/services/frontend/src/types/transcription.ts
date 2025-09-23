@@ -32,6 +32,7 @@ export interface TranscriptionState {
   completedAt?: string
   gcsUri?: string
   fileSizeBytes?: number
+  fileName?: string
 }
 
 export interface SpeakerIdentificationSummary {

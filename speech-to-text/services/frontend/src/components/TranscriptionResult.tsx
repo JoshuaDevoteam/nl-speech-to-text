@@ -245,7 +245,7 @@ export default function TranscriptionResult({
       {segments.length > 0 ? (
         <div className="mt-6">
           <h4 className="text-sm font-medium text-gray-900 mb-3">Transcript Segments</h4>
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="max-h-96 overflow-y-auto overflow-x-auto rounded-lg border border-gray-200">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>

@@ -39,6 +39,7 @@ export function useTranscription() {
   const uploadExpectedDuration = useRef<number | null>(null)
   const uploadCompletedRef = useRef<boolean>(false)
   const uploadLoadedRef = useRef<number>(0)
+  const currentFileNameRef = useRef<string | undefined>(undefined)
 
   const transcriptionStageStart = useRef<number | null>(null)
   const transcriptionStageExpected = useRef<number | null>(null)
@@ -289,6 +290,7 @@ export function useTranscription() {
     setUploadProgress(0)
     setUploadStats({ loaded: 0, total: file.size })
     setCurrentFileSizeBytes(file.size)
+    currentFileNameRef.current = file.name
 
     const start = performance.now()
     uploadStartTime.current = start
