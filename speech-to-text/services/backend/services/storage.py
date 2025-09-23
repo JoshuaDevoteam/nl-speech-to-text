@@ -37,10 +37,15 @@ class StorageService:
 
         self.project_id = settings.gcp_project_id or detected_project
 
-        self.signing_credentials = base_credentials if isinstance(base_credentials, Signing) else None
+        self.signing_credentials = None
 
-        if self.signing_credentials is None:
+        if hasattr(base_credentials, 'sign_bytes') and callable(getattr(base_credentials, 'sign_bytes', None)):
+            self.signing_credentials = base_credentials
+        else:
             target_principal = settings.signing_service_account
+            if target_principal and target_principal.lower() == 'default':
+                target_principal = None
+
             if not target_principal and hasattr(base_credentials, 'service_account_email'):
                 target_principal = base_credentials.service_account_email
 
@@ -201,7 +206,8 @@ class StorageService:
             )
 
         def _generate_signed_url():
-            signing_credentials.refresh(self._request)
+            if hasattr(signing_credentials, 'refresh'):
+                signing_credentials.refresh(self._request)
             return blob.generate_signed_url(
                 version="v4",
                 expiration=timedelta(hours=expiration_hours),
@@ -248,7 +254,8 @@ class StorageService:
         def _create_resumable_session():
             expiration = datetime.utcnow() + timedelta(hours=expiration_hours)
 
-            signing_credentials.refresh(self._request)
+            if hasattr(signing_credentials, 'refresh'):
+                signing_credentials.refresh(self._request)
             signed_url = blob.generate_signed_url(
                 version="v4",
                 expiration=expiration,
