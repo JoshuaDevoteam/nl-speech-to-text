@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # CORS Settings - Use explicit environment variable handling
     _cors_origins_env: Optional[str] = os.getenv("CORS_ORIGINS")
     _cors_origin_regex_env: Optional[str] = os.getenv("CORS_ORIGIN_REGEX")
+    signing_service_account: Optional[str] = os.getenv("SIGNING_SERVICE_ACCOUNT")
     
     @property
     def cors_origins(self) -> List[str]:

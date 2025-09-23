@@ -6,8 +6,13 @@ import tempfile
 import subprocess
 from datetime import datetime, timedelta
 from typing import Optional, BinaryIO
+
 from google.cloud import storage
 from google.cloud.storage import Blob
+from google.auth import default
+from google.auth.credentials import Signing
+from google.auth.impersonated_credentials import Credentials as ImpersonatedCredentials
+from google.auth.transport.requests import Request
 
 
 class StorageService:
@@ -22,7 +27,41 @@ class StorageService:
         self.settings = settings
         self.bucket_name = settings.gcs_bucket_name
         self.transcript_bucket = settings.gcs_transcript_bucket
-        self.storage_client = storage.Client(project=settings.gcp_project_id)
+
+        base_credentials, detected_project = default()
+
+        if hasattr(base_credentials, 'with_scopes'):
+            base_credentials = base_credentials.with_scopes([
+                'https://www.googleapis.com/auth/cloud-platform'
+            ])
+
+        self.project_id = settings.gcp_project_id or detected_project
+
+        self.signing_credentials = base_credentials if isinstance(base_credentials, Signing) else None
+
+        if self.signing_credentials is None:
+            target_principal = settings.signing_service_account
+            if not target_principal and hasattr(base_credentials, 'service_account_email'):
+                target_principal = base_credentials.service_account_email
+
+            if target_principal:
+                try:
+                    self.signing_credentials = ImpersonatedCredentials(
+                        source_credentials=base_credentials,
+                        target_principal=target_principal,
+                        target_scopes=['https://www.googleapis.com/auth/cloud-platform'],
+                        lifetime=3600
+                    )
+                except Exception as exc:
+                    print(f"WARNING: Failed to create impersonated credentials for signing: {exc}")
+                    self.signing_credentials = None
+
+        self._request = Request()
+
+        self.storage_client = storage.Client(
+            project=self.project_id,
+            credentials=base_credentials
+        )
         self.bucket = self.storage_client.bucket(self.bucket_name)
         self.transcript_bucket_obj = self.storage_client.bucket(self.transcript_bucket)
     
@@ -155,23 +194,20 @@ class StorageService:
         # Generate signed URL in executor
         loop = asyncio.get_event_loop()
         
+        signing_credentials = self.signing_credentials
+        if signing_credentials is None:
+            raise RuntimeError(
+                "No signing credentials available. Ensure the service account can sign blobs or set SIGNING_SERVICE_ACCOUNT."
+            )
+
         def _generate_signed_url():
-            try:
-                return blob.generate_signed_url(
-                    version="v4",
-                    expiration=timedelta(hours=expiration_hours),
-                    method=method
-                )
-            except AttributeError as e:
-                if "private key to sign credentials" in str(e):
-                    # Fallback: Try with service account email for impersonation
-                    return blob.generate_signed_url(
-                        version="v4",
-                        expiration=timedelta(hours=expiration_hours),
-                        method=method,
-                        service_account_email=f"sa-backend-dev@{self.settings.gcp_project_id}.iam.gserviceaccount.com"
-                    )
-                raise
+            signing_credentials.refresh(self._request)
+            return blob.generate_signed_url(
+                version="v4",
+                expiration=timedelta(hours=expiration_hours),
+                method=method,
+                credentials=signing_credentials
+            )
         
         signed_url = await loop.run_in_executor(None, _generate_signed_url)
         
@@ -203,30 +239,23 @@ class StorageService:
         # Generate resumable upload URL in executor
         loop = asyncio.get_event_loop()
         
+        signing_credentials = self.signing_credentials
+        if signing_credentials is None:
+            raise RuntimeError(
+                "No signing credentials available for resumable upload. Ensure the service account can sign blobs or set SIGNING_SERVICE_ACCOUNT."
+            )
+
         def _create_resumable_session():
-            # Create a resumable upload session
             expiration = datetime.utcnow() + timedelta(hours=expiration_hours)
-            
-            # Generate signed URL for resumable upload initiation
-            try:
-                signed_url = blob.generate_signed_url(
-                    version="v4",
-                    expiration=expiration,
-                    method="POST",
-                    headers={"x-goog-resumable": "start"}
-                )
-            except AttributeError as e:
-                if "private key to sign credentials" in str(e):
-                    # Fallback: Try with service account email for impersonation
-                    signed_url = blob.generate_signed_url(
-                        version="v4",
-                        expiration=expiration,
-                        method="POST",
-                        headers={"x-goog-resumable": "start"},
-                        service_account_email=f"sa-backend-dev@{self.settings.gcp_project_id}.iam.gserviceaccount.com"
-                    )
-                else:
-                    raise
+
+            signing_credentials.refresh(self._request)
+            signed_url = blob.generate_signed_url(
+                version="v4",
+                expiration=expiration,
+                method="POST",
+                headers={"x-goog-resumable": "start"},
+                credentials=signing_credentials
+            )
             
             return {
                 "resumable_url": signed_url,
