@@ -7,8 +7,7 @@ import {
   ClipboardDocumentIcon,
   ArrowDownTrayIcon,
   SpeakerWaveIcon,
-  ClockIcon,
-  PaperClipIcon
+  ClockIcon
 } from '@heroicons/react/24/outline'
 import { CheckIcon } from '@heroicons/react/24/solid'
 import clsx from 'clsx'
@@ -38,8 +37,7 @@ export default function TranscriptionResult({
     jobId, 
     createdAt, 
     completedAt, 
-    gcsUri,
-    fileName
+    gcsUri
   } = transcriptionState
 
   if (!transcript) {
@@ -174,14 +172,6 @@ export default function TranscriptionResult({
                 <span>{wordCount} words</span>
               </div>
             </div>
-            {fileName && (
-              <div className="mt-1 flex items-center space-x-1 text-xs text-gray-400 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
-                <PaperClipIcon className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate" title={fileName}>
-                  {fileName}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 

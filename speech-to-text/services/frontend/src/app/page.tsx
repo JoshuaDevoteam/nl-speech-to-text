@@ -348,7 +348,7 @@ export default function HomePage() {
                     etaSeconds={transcriptionEta ?? undefined}
                     fallbackProgress={transcriptionProgressHint ?? undefined}
                   />
-                  {transcriptionEta && transcriptionEta > 0 && (
+                  {transcriptionEta != null && transcriptionEta > 0 && (
                     <p className="text-center text-xs text-gray-400">
                       Estimated remaining time ~{formatDuration(transcriptionEta)}
                     </p>
