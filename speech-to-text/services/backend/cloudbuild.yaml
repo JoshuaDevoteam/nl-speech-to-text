@@ -35,7 +35,7 @@ steps:
       - --region=${_REGION}
       - --project=$PROJECT_ID
       - --service-account=sa-backend-dev@$PROJECT_ID.iam.gserviceaccount.com
-      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,GCP_LOCATION=${_REGION},GCS_BUCKET_NAME=gcs-pj-speech-text-dev-audio-uploads,GCS_TRANSCRIPT_BUCKET=gcs-pj-speech-text-dev-transcripts,MAX_FILE_SIZE_MB=5120,RECOGNIZER_LOCATION=europe-west4,DEFAULT_RECOGNIZER_ID=dutch-recognizer-3,DEFAULT_LANGUAGE_CODE=nl-NL,SPEECH_MODEL=chirp_2
+      - --set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,GCP_LOCATION=${_REGION},GCS_BUCKET_NAME=gcs-pj-speech-text-dev-audio-uploads,GCS_TRANSCRIPT_BUCKET=gcs-pj-speech-text-dev-transcripts,MAX_FILE_SIZE_MB=5120,RECOGNIZER_LOCATION=europe-west4,DEFAULT_RECOGNIZER_ID=dutch-recognizer-3,DEFAULT_LANGUAGE_CODE=nl-NL,SPEECH_MODEL=chirp_2,SIGNING_SERVICE_ACCOUNT=sa-backend-dev@$PROJECT_ID.iam.gserviceaccount.com
       - "--set-env-vars=CORS_ORIGINS=https://speech-frontend-zkeanislmq-ew.a.run.app;http://localhost:3000;http://localhost:3001"
       - --allow-unauthenticated
       - --cpu=2
