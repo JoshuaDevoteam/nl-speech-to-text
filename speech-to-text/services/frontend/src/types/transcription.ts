@@ -1,11 +1,28 @@
+export interface TranscriptWord {
+  word: string
+  start_seconds?: number | null
+  end_seconds?: number | null
+  confidence?: number | null
+}
+
+export interface TranscriptSegment {
+  start_seconds?: number | null
+  end_seconds?: number | null
+  confidence?: number | null
+  text: string
+  words?: TranscriptWord[] | null
+}
+
 export interface TranscriptionState {
   jobId?: string
   status?: 'pending' | 'processing' | 'extracting_audio' | 'transcribing' | 'identifying_speakers' | 'completed' | 'failed'
   progress?: number
   transcript?: string
   transcriptUri?: string
+  transcriptSegments?: TranscriptSegment[]
   speakerIdentifiedTranscript?: string
   speakerIdentificationSummary?: SpeakerIdentificationSummary
+  refinedTranscript?: string
   error?: string
   message?: string
   createdAt?: string
@@ -73,8 +90,10 @@ export interface TranscriptionStatusResponse {
   gcs_uri: string
   transcript?: string
   transcript_uri?: string
+  transcript_segments?: TranscriptSegment[]
   speaker_identified_transcript?: string
   speaker_identification_summary?: SpeakerIdentificationSummary
+  refined_transcript?: string
   error?: string
 }
 

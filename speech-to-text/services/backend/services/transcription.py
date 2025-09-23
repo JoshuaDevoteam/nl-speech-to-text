@@ -1,9 +1,9 @@
 """Transcription service using Google Cloud Speech-to-Text API."""
 
 import asyncio
+import os
 from typing import Optional, List, Tuple, Dict, Any
 from google.cloud import speech
-from google.cloud import storage
 from google.api_core import client_options
 from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
@@ -39,6 +39,89 @@ class TranscriptionService:
         
         # V1 client for fallback operations
         self.speech_client_v1 = speech.SpeechClient()
+
+    @staticmethod
+    def _duration_to_seconds(duration: Any) -> Optional[float]:
+        """Convert a protobuf duration/offset into floating-point seconds."""
+        if duration is None:
+            return None
+
+        seconds = getattr(duration, "seconds", None)
+        nanos = getattr(duration, "nanos", None)
+
+        if seconds is None and hasattr(duration, "total_seconds"):
+            try:
+                return float(duration.total_seconds())
+            except Exception:
+                return None
+
+        seconds = float(seconds or 0)
+        nanos = float(nanos or 0)
+        return seconds + nanos / 1_000_000_000
+
+    def _extract_word_times(self, word) -> Tuple[Optional[float], Optional[float]]:
+        """Get start and end times (seconds) for a word regardless of API version."""
+        start_attr = getattr(word, "start_offset", None) or getattr(word, "start_time", None)
+        end_attr = getattr(word, "end_offset", None) or getattr(word, "end_time", None)
+        return self._duration_to_seconds(start_attr), self._duration_to_seconds(end_attr)
+
+    def _build_segments_from_results(self, results) -> Tuple[str, List[Dict[str, Any]]]:
+        """Convert recognition results into combined text and rich segments."""
+        segments: List[Dict[str, Any]] = []
+        transcript_parts: List[str] = []
+
+        for result in results:
+            if not getattr(result, "alternatives", None):
+                continue
+
+            alternative = result.alternatives[0]
+            text = (alternative.transcript or "").strip()
+            if not text:
+                continue
+
+            words = list(getattr(alternative, "words", []) or [])
+
+            start_seconds = None
+            end_seconds = None
+            word_payload: List[Dict[str, Any]] = []
+
+            if words:
+                start_seconds, _ = self._extract_word_times(words[0])
+                _, end_seconds = self._extract_word_times(words[-1])
+
+                for word in words:
+                    word_start, word_end = self._extract_word_times(word)
+                    confidence = getattr(word, "confidence", None)
+                    try:
+                        confidence_value = float(confidence) if confidence is not None else None
+                    except (TypeError, ValueError):
+                        confidence_value = None
+
+                    word_payload.append({
+                        "word": word.word,
+                        "start_seconds": word_start,
+                        "end_seconds": word_end,
+                        "confidence": confidence_value,
+                    })
+
+            alt_confidence = getattr(alternative, "confidence", None)
+            try:
+                confidence_value = float(alt_confidence) if alt_confidence is not None else None
+            except (TypeError, ValueError):
+                confidence_value = None
+
+            segments.append({
+                "start_seconds": start_seconds,
+                "end_seconds": end_seconds,
+                "confidence": confidence_value,
+                "text": text,
+                "words": word_payload or None,
+            })
+
+            transcript_parts.append(text)
+
+        combined_text = " ".join(transcript_parts).strip()
+        return combined_text, segments
     
     async def check_recognizer_exists(self, recognizer_id: str) -> bool:
         """Check if a recognizer already exists.
@@ -122,7 +205,7 @@ class TranscriptionService:
         enable_speaker_identification: bool = False,
         min_speaker_count: int = 2,
         max_speaker_count: int = 10
-    ) -> Tuple[str, Optional[str], Optional[Dict[str, Any]]]:
+    ) -> Tuple[str, List[Dict[str, Any]], Optional[str], Optional[Dict[str, Any]], Optional[str]]:
         """Transcribe audio from Google Cloud Storage.
         
         Args:
@@ -135,42 +218,55 @@ class TranscriptionService:
             max_speaker_count: Maximum number of speakers
             
         Returns:
-            Tuple of (original_transcript, speaker_identified_transcript, speaker_summary)
+            Tuple of (
+                original transcript text,
+                transcript segments,
+                speaker-identified transcript,
+                speaker summary,
+                refined transcript text
+            )
         """
         # Get base transcript - disable diarization if speaker identification is enabled
         use_diarization = enable_diarization and not enable_speaker_identification
         
         # Use v2 API with recognizer if available
         if recognizer_id and self.location in ["us", "europe-west4"]:
-            transcript = await self._transcribe_v2(gcs_uri, recognizer_id)
+            transcript, transcript_segments = await self._transcribe_v2(
+                gcs_uri,
+                recognizer_id,
+                language_code or self.settings.default_language_code
+            )
         else:
-            transcript = await self._transcribe_v1(
+            transcript, transcript_segments = await self._transcribe_v1(
                 gcs_uri,
                 language_code,
                 use_diarization,
                 min_speaker_count,
                 max_speaker_count
             )
-        
+
+        speaker_transcript: Optional[str] = None
+        speaker_summary: Optional[Dict[str, Any]] = None
+        refined_transcript: Optional[str] = None
+
         # Apply speaker identification if enabled
         if enable_speaker_identification:
             try:
                 identification_result = await self.speaker_identification.identify_speakers(transcript)
                 speaker_transcript = self.speaker_identification.format_transcript_with_speakers(identification_result)
                 speaker_summary = self.speaker_identification.get_speaker_summary(identification_result)
-                return transcript, speaker_transcript, speaker_summary
+                refined_transcript = self.speaker_identification.get_refined_transcript(identification_result)
             except Exception as e:
                 print(f"Speaker identification failed: {e}")
-                # Return original transcript with empty speaker data
-                return transcript, None, None
-        
-        return transcript, None, None
+
+        return transcript, transcript_segments, speaker_transcript, speaker_summary, refined_transcript
     
     async def _transcribe_v2(
         self,
         gcs_uri: str,
-        recognizer_id: str
-    ) -> str:
+        recognizer_id: str,
+        language_code: str
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         """Transcribe using Speech-to-Text v2 API with recognizer.
         
         Args:
@@ -178,7 +274,7 @@ class TranscriptionService:
             recognizer_id: Recognizer ID to use
             
         Returns:
-            Transcribed text
+            Tuple containing transcript text and segment metadata
         """
         recognizer_name = (
             f"projects/{self.project_id}/locations/{self.location}/"
@@ -186,8 +282,17 @@ class TranscriptionService:
         )
         
         # Configure recognition
+        features = cloud_speech.RecognitionFeatures(
+            enable_automatic_punctuation=True,
+            enable_word_confidence=True,
+            enable_word_time_offsets=True,
+        )
+
         config = cloud_speech.RecognitionConfig(
             auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
+            language_codes=[language_code or self.settings.default_language_code],
+            model=self.settings.speech_model,
+            features=features,
         )
         
         # Create file metadata
@@ -228,7 +333,7 @@ class TranscriptionService:
         enable_diarization: bool,
         min_speaker_count: int,
         max_speaker_count: int
-    ) -> str:
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         """Transcribe using Speech-to-Text v1 API.
         
         Args:
@@ -239,16 +344,21 @@ class TranscriptionService:
             max_speaker_count: Maximum number of speakers
             
         Returns:
-            Transcribed text
+            Tuple containing transcript text and segment metadata
         """
         audio = speech.RecognitionAudio(uri=gcs_uri)
-        
-        config_dict = {
-            "encoding": speech.RecognitionConfig.AudioEncoding.ENCODING_UNSPECIFIED,
+
+        config_dict: Dict[str, Any] = {
             "language_code": language_code,
             "enable_automatic_punctuation": True,
+            "enable_word_time_offsets": True,
+            "enable_word_confidence": True,
         }
-        
+
+        encoding = self._determine_audio_encoding(gcs_uri)
+        if encoding is not None:
+            config_dict["encoding"] = encoding
+
         # Add diarization if enabled
         if enable_diarization:
             config_dict["diarization_config"] = speech.SpeakerDiarizationConfig(
@@ -258,7 +368,7 @@ class TranscriptionService:
             )
         
         config = speech.RecognitionConfig(**config_dict)
-        
+
         # Run in executor to avoid blocking
         loop = asyncio.get_event_loop()
         operation = await loop.run_in_executor(
@@ -281,8 +391,34 @@ class TranscriptionService:
             return self._format_diarized_transcript(response)
         else:
             return self._format_simple_transcript(response)
+
+    def _determine_audio_encoding(
+        self,
+        gcs_uri: str
+    ) -> Optional[speech.RecognitionConfig.AudioEncoding]:
+        """Infer the most suitable audio encoding from the GCS URI."""
+
+        filename = gcs_uri.rsplit('/', 1)[-1].lower()
+        _, ext = os.path.splitext(filename)
+
+        encoding_map = {
+            ".wav": speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            ".flac": speech.RecognitionConfig.AudioEncoding.FLAC,
+            ".ogg": speech.RecognitionConfig.AudioEncoding.OGG_OPUS,
+            ".opus": speech.RecognitionConfig.AudioEncoding.OGG_OPUS,
+            ".webm": getattr(speech.RecognitionConfig.AudioEncoding, "WEBM_OPUS", None),
+            ".mp3": getattr(speech.RecognitionConfig.AudioEncoding, "MP3", None),
+            ".m4a": getattr(speech.RecognitionConfig.AudioEncoding, "MP4", None),
+        }
+
+        encoding = encoding_map.get(ext)
+
+        if isinstance(encoding, int):
+            return encoding
+
+        return None
     
-    def _parse_v2_transcript(self, response, gcs_uri: str) -> str:
+    def _parse_v2_transcript(self, response, gcs_uri: str) -> Tuple[str, List[Dict[str, Any]]]:
         """Parse transcript from v2 API response.
         
         Args:
@@ -293,38 +429,22 @@ class TranscriptionService:
             Parsed transcript text
         """
         if not response.results or gcs_uri not in response.results:
-            return "Transcription finished, but no speech was detected."
-        
+            return "", []
+
         file_result = response.results[gcs_uri]
-        
+
         if not file_result.transcript or not file_result.transcript.results:
-            return "Transcription finished, but no speech was detected."
-        
-        transcript_parts = []
-        for segment in file_result.transcript.results:
-            if segment.alternatives:
-                transcript_parts.append(segment.alternatives[0].transcript)
-        
-        return " ".join(transcript_parts).strip()
-    
-    def _format_simple_transcript(self, response) -> str:
-        """Format transcript from v1 API response without diarization.
-        
-        Args:
-            response: Long running recognize response
-            
-        Returns:
-            Formatted transcript text
-        """
-        transcript_parts = []
-        
-        for result in response.results:
-            if result.alternatives:
-                transcript_parts.append(result.alternatives[0].transcript)
-        
-        return " ".join(transcript_parts).strip()
-    
-    def _format_diarized_transcript(self, response) -> str:
+            return "", []
+
+        return self._build_segments_from_results(file_result.transcript.results)
+
+    def _format_simple_transcript(self, response) -> Tuple[str, List[Dict[str, Any]]]:
+        """Format transcript from v1 API response without diarization."""
+
+        results = getattr(response, "results", [])
+        return self._build_segments_from_results(results)
+
+    def _format_diarized_transcript(self, response) -> Tuple[str, List[Dict[str, Any]]]:
         """Format transcript from v1 API response with speaker diarization.
         
         Args:
@@ -333,6 +453,7 @@ class TranscriptionService:
         Returns:
             Formatted transcript with speaker tags
         """
+        base_text, segments = self._build_segments_from_results(getattr(response, "results", []))
         full_transcript = []
         
         for result in response.results:
@@ -361,5 +482,6 @@ class TranscriptionService:
                         )
             except (IndexError, AttributeError):
                 continue
-        
-        return "\n".join(full_transcript)
+
+        diarized_text = "\n".join(full_transcript).strip()
+        return (diarized_text or base_text, segments)

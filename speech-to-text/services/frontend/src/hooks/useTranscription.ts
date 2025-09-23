@@ -214,8 +214,10 @@ export function useTranscription() {
       progress: data.progress || prev.progress,
       message: data.message,
       transcript: data.data?.transcript || prev.transcript,
+      transcriptSegments: data.data?.transcript_segments || data.data?.segments_preview || prev.transcriptSegments,
       speakerIdentifiedTranscript: data.data?.speaker_identified_transcript || prev.speakerIdentifiedTranscript,
-      speakerIdentificationSummary: data.data?.speaker_identification_summary || prev.speakerIdentificationSummary
+      speakerIdentificationSummary: data.data?.speaker_identification_summary || prev.speakerIdentificationSummary,
+      refinedTranscript: data.data?.refined_transcript ?? prev.refinedTranscript
     }))
 
     // Handle completion
@@ -241,8 +243,10 @@ export function useTranscription() {
         progress: status.progress,
         transcript: status.transcript,
         transcriptUri: status.transcript_uri,
+        transcriptSegments: status.transcript_segments,
         speakerIdentifiedTranscript: status.speaker_identified_transcript,
         speakerIdentificationSummary: status.speaker_identification_summary,
+        refinedTranscript: status.refined_transcript,
         error: status.error,
         createdAt: status.created_at,
         startedAt: status.started_at,
@@ -431,7 +435,9 @@ export function useTranscription() {
       status: 'pending',
       progress: 0,
       gcsUri,
-      fileSizeBytes: currentFileSizeBytes
+      fileSizeBytes: currentFileSizeBytes,
+      transcriptSegments: undefined,
+      refinedTranscript: undefined
     })
 
     try {

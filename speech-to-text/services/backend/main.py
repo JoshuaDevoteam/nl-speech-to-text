@@ -21,7 +21,8 @@ from models import (
     RecognizerRequest,
     RecognizerResponse,
     UploadResponse,
-    JobStatus
+    JobStatus,
+    TranscriptSegment
 )
 from services.transcription import TranscriptionService
 from services.storage import StorageService
@@ -218,7 +219,7 @@ async def process_transcription(job_id: str, request: TranscriptionRequest):
         jobs[job_id].status = "transcribing"
         await notify_websocket(job_id, {"status": "transcribing", "message": "Transcribing audio"})
         
-        transcript, speaker_transcript, speaker_summary = await transcription_service.transcribe_audio(
+        transcript, transcript_segments, speaker_transcript, speaker_summary, refined_transcript = await transcription_service.transcribe_audio(
             gcs_uri=audio_gcs_uri,
             language_code=request.language_code or "nl-NL",
             recognizer_id=request.recognizer_id,
@@ -237,18 +238,26 @@ async def process_transcription(job_id: str, request: TranscriptionRequest):
         jobs[job_id].status = "completed"
         jobs[job_id].completed_at = datetime.now()
         jobs[job_id].transcript = transcript
+        jobs[job_id].transcript_segments = [TranscriptSegment(**segment) for segment in transcript_segments] if transcript_segments else None
         jobs[job_id].speaker_identified_transcript = speaker_transcript
         jobs[job_id].speaker_identification_summary = speaker_summary
-        
+        jobs[job_id].refined_transcript = refined_transcript
+
         # Save transcript to GCS
         transcript_uri = await storage_service.save_transcript(transcript, job_id)
         jobs[job_id].transcript_uri = transcript_uri
-        
+
         # Notify completion
         await notify_websocket(job_id, {
             "status": "completed",
             "message": "Transcription completed successfully",
-            "transcript": transcript[:500]  # Send first 500 chars
+            "data": {
+                "transcript": transcript[:500],
+                "transcript_segments": transcript_segments[:5] if transcript_segments else None,
+                "refined_transcript": refined_transcript,
+                "speaker_identified_transcript": speaker_transcript,
+                "speaker_identification_summary": speaker_summary,
+            }
         })
         
     except Exception as e:
@@ -290,8 +299,10 @@ async def get_transcription_status(job_id: str):
     if job.status == "completed":
         response["transcript"] = job.transcript
         response["transcript_uri"] = job.transcript_uri
+        response["transcript_segments"] = [segment.model_dump() if hasattr(segment, "model_dump") else segment for segment in job.transcript_segments] if job.transcript_segments else None
         response["speaker_identified_transcript"] = job.speaker_identified_transcript
         response["speaker_identification_summary"] = job.speaker_identification_summary
+        response["refined_transcript"] = job.refined_transcript
     elif job.status == "failed":
         response["error"] = job.error
     

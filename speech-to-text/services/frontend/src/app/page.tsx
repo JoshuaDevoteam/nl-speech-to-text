@@ -57,7 +57,19 @@ export default function HomePage() {
   } = useTranscription()
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [pendingTranscription, setPendingTranscription] = useState<{
+    gcsUri: string
+    fileName: string
+    fileSize?: number
+    contentType?: string
+    extractAudio: boolean
+  } | null>(null)
+  const [autoStartError, setAutoStartError] = useState<string | null>(null)
   const [transcriptionOptions, setTranscriptionOptions] = useState<TranscriptionOptions>({ ...DEFAULT_OPTIONS })
+
+  const pendingFileSizeLabel = pendingTranscription?.fileSize != null
+    ? formatBytes(pendingTranscription.fileSize)
+    : null
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {
@@ -65,12 +77,10 @@ export default function HomePage() {
       setUploadedFile(file)
 
       const isVideoFile = file.type.startsWith('video/')
-      if (isVideoFile && !transcriptionOptions.extract_audio) {
-        setTranscriptionOptions(prev => ({
-          ...prev,
-          extract_audio: true,
-        }))
-      }
+      setTranscriptionOptions(prev => ({
+        ...prev,
+        extract_audio: isVideoFile ? true : prev.extract_audio,
+      }))
 
       const result = await uploadFile(file)
 
@@ -79,18 +89,28 @@ export default function HomePage() {
         return
       }
 
-      toast.success('File uploaded successfully!')
-
       const shouldExtractAudio = isVideoFile ? true : transcriptionOptions.extract_audio
+
+      setPendingTranscription({
+        gcsUri: result.data.gcs_uri,
+        fileName: file.name,
+        fileSize: result.data.size ?? file.size,
+        contentType: file.type,
+        extractAudio: shouldExtractAudio,
+      })
+      setAutoStartError(null)
 
       try {
         await startTranscription(result.data.gcs_uri, {
           ...transcriptionOptions,
           extract_audio: shouldExtractAudio,
         })
+        setPendingTranscription(null)
+        setAutoStartError(null)
       } catch (startError) {
-        console.error('Transcription start error:', startError)
-        toast.error('Failed to start transcription')
+        console.error('Transcription auto-start error:', startError)
+        // Error toast handled inside startTranscription
+        setAutoStartError('Automatic transcription start failed. You can retry below.')
       }
     } catch (error) {
       console.error('Upload error:', error)
@@ -98,9 +118,27 @@ export default function HomePage() {
     }
   }, [uploadFile, startTranscription, transcriptionOptions, reset])
 
+  const handleManualStart = useCallback(async () => {
+    if (!pendingTranscription) return
+
+    try {
+      await startTranscription(pendingTranscription.gcsUri, {
+        ...transcriptionOptions,
+        extract_audio: pendingTranscription.extractAudio,
+      })
+      setPendingTranscription(null)
+      setAutoStartError(null)
+    } catch (error) {
+      console.error('Manual transcription start error:', error)
+      // startTranscription already handles toast + state
+    }
+  }, [pendingTranscription, startTranscription, transcriptionOptions])
+
   const handleNewUpload = useCallback(() => {
     reset()
     setUploadedFile(null)
+    setPendingTranscription(null)
+    setAutoStartError(null)
     setTranscriptionOptions({ ...DEFAULT_OPTIONS })
   }, [reset])
 
@@ -232,6 +270,37 @@ export default function HomePage() {
                   onFileSelect={handleFileUpload}
                   disabled={isUploading || isTranscribing}
                 />
+              </div>
+            )}
+
+            {pendingTranscription && !isTranscribing && !isUploading && (
+              <div className="card">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">Ready to start transcription</h3>
+                    <p className="mt-2 text-sm text-gray-600">
+                      {pendingTranscription.fileName}
+                      {pendingFileSizeLabel ? ` • ${pendingFileSizeLabel}` : ''}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {autoStartError || 'Upload completed successfully. Start the transcription when you are ready.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button
+                    onClick={handleManualStart}
+                    className="btn-primary"
+                  >
+                    Start Transcription
+                  </button>
+                  <button
+                    onClick={handleNewUpload}
+                    className="btn-outline"
+                  >
+                    Upload Another File
+                  </button>
+                </div>
               </div>
             )}
 

@@ -5,6 +5,25 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class TranscriptWord(BaseModel):
+    """Word-level detail for a transcript segment."""
+
+    word: str
+    start_seconds: Optional[float] = None
+    end_seconds: Optional[float] = None
+    confidence: Optional[float] = None
+
+
+class TranscriptSegment(BaseModel):
+    """Segment-level transcription data with timing and confidence."""
+
+    start_seconds: Optional[float] = Field(None, description="Segment start time in seconds")
+    end_seconds: Optional[float] = Field(None, description="Segment end time in seconds")
+    confidence: Optional[float] = Field(None, description="Confidence score (0-1)")
+    text: str = Field(..., description="Transcript text for the segment")
+    words: Optional[List[TranscriptWord]] = Field(None, description="Word-level details")
+
+
 class TranscriptionRequest(BaseModel):
     """Request model for starting a transcription job."""
     
@@ -38,8 +57,10 @@ class TranscriptionStatus(BaseModel):
     completed_at: Optional[datetime] = Field(None, description="Job completion timestamp")
     transcript: Optional[str] = Field(None, description="Transcription result")
     transcript_uri: Optional[str] = Field(None, description="GCS URI of saved transcript")
+    transcript_segments: Optional[List[TranscriptSegment]] = Field(None, description="Segmented transcript with timing and confidence")
     speaker_identified_transcript: Optional[str] = Field(None, description="Transcript with speaker identification")
     speaker_identification_summary: Optional[Dict[str, Any]] = Field(None, description="Speaker identification summary")
+    refined_transcript: Optional[str] = Field(None, description="Lightly improved transcript text")
     error: Optional[str] = Field(None, description="Error message if failed")
 
 
@@ -81,8 +102,10 @@ class JobStatus(BaseModel):
     gcs_uri: str
     transcript: Optional[str] = None
     transcript_uri: Optional[str] = None
+    transcript_segments: Optional[List[TranscriptSegment]] = None
     speaker_identified_transcript: Optional[str] = None
     speaker_identification_summary: Optional[Dict[str, Any]] = None
+    refined_transcript: Optional[str] = None
     error: Optional[str] = None
 
 

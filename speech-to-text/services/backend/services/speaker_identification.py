@@ -476,7 +476,7 @@ Richtlijnen:
     
     def get_speaker_summary(self, identification_result: Dict) -> Dict:
         """Get a summary of identified speakers.
-        
+
         Args:
             identification_result: Result from identify_speakers()
             
@@ -499,3 +499,19 @@ Richtlijnen:
             "speakers": sorted(speakers),
             "notes": identification_result.get("notes", "")
         }
+
+    def get_refined_transcript(self, identification_result: Dict) -> Optional[str]:
+        """Build a lightly refined transcript without speaker labels."""
+
+        segments = identification_result.get("segments") or []
+        refined_parts: List[str] = []
+
+        for segment in segments:
+            text = (segment.get("text") or "").strip()
+            if text:
+                refined_parts.append(text)
+
+        if not refined_parts:
+            return None
+
+        return "\n\n".join(refined_parts)

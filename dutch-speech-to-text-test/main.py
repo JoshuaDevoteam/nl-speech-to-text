@@ -8,9 +8,9 @@ from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
 
 # --- Configuration ---
-GCS_BUCKET_NAME = "gcs-audio-transcripts" # 👈 Replace with your bucket name
-RECOGNIZER_ID = "dutch-recognizer-1" # 👈 Replace with your recognizer ID
-GCP_PROJECT_ID = "pj-dutch-speech-to-text" # 👈 Replace with your GCP project ID
+GCS_BUCKET_NAME = "gcs-pj-speech-text-dev-audio-uploads" # 👈 Replace with your bucket name
+RECOGNIZER_ID = "dutch-recognizer-2" # 👈 Replace with your recognizer ID
+GCP_PROJECT_ID = "pj-speech-text-dev" # 👈 Replace with your GCP project ID
 
 def check_recognizer_exists(project_id: str, location: str, recognizer_id: str) -> bool:
     """Check if a recognizer already exists."""
@@ -145,7 +145,7 @@ def upload_to_gcs(file_path: str, bucket_name: str) -> str:
     blob = bucket.blob(blob_name)
     
     print(f"Uploading '{blob_name}' to GCS bucket '{bucket_name}'...")
-    blob.upload_from_filename(file_path)
+    blob.upload_from_filename(file_path, timeout=500)
     
     gcs_uri = f"gs://{bucket_name}/{blob_name}"
     print(f"✅ File uploaded successfully. GCS URI: {gcs_uri}")
@@ -215,10 +215,10 @@ def parse_v2_transcript(file_result) -> str:
 # --- Main execution block ---
 if __name__ == "__main__":
     # 1. Define the input video file
-    input_video = r"/Users/joshuavink/Devoteam/dutch-speech-to-text/Voorbeeld video van een vergadering.publer.com.mp4" # 👈 Replace with your video file path
+    input_video = r"/Users/joshuavink/Devoteam/speech-to-text/dutch-speech-to-text-test/Rabobank_movie_2.mp4" # 👈 Replace with your video file path
     
     # Location for the recognizer (us supports Chirp 3)
-    LOCATION = "us"
+    LOCATION = "europe-west4"
 
     try:
         # 2. Create or get the recognizer (only needs to be done once)
