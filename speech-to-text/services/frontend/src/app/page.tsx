@@ -89,7 +89,7 @@ export default function HomePage() {
         return
       }
 
-      const shouldExtractAudio = isVideoFile ? true : transcriptionOptions.extract_audio
+      const shouldExtractAudio = isVideoFile || Boolean(transcriptionOptions.extract_audio)
 
       setPendingTranscription({
         gcsUri: result.data.gcs_uri,
