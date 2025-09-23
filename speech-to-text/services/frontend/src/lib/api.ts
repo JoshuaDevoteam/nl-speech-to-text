@@ -6,7 +6,9 @@ import type {
   TranscriptionStatusResponse,
   RecognizerRequest,
   RecognizerResponse,
-  SignedUrlResponse
+  SignedUrlResponse,
+  EnhancedSignedUrlResponse,
+  UploadProgress
 } from '@/types/transcription'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -43,14 +45,25 @@ api.interceptors.response.use(
     console.error('API Response Error:', error)
     
     // Handle common error cases
-    if (error.response?.status === 413 || error.response?.status === 400) {
-      throw new Error('File too large. Maximum size is 5GB.')
+    if (error.response?.status === 413) {
+      throw new Error('File too large for direct upload. Try using the resumable upload option or ensure your file is under 5GB.')
+    } else if (error.response?.status === 400) {
+      const detail = error.response?.data?.detail || error.message
+      if (detail.includes('too large')) {
+        throw new Error('File exceeds the 5GB maximum size limit.')
+      } else if (detail.includes('not supported')) {
+        throw new Error('File type not supported. Please use MP3, MP4, WAV, M4A, FLAC, OGG, WEBM, or MOV files.')
+      } else {
+        throw new Error(detail || 'Invalid file or request. Please check your file and try again.')
+      }
     } else if (error.response?.status === 429) {
       throw new Error('Too many requests. Please try again later.')
     } else if (error.response?.status >= 500) {
       throw new Error('Server error. Please try again later.')
     } else if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout. Please try again.')
+      throw new Error('Request timeout. Please try again with a smaller file or check your connection.')
+    } else if (error.code === 'ERR_NETWORK') {
+      throw new Error('Network error. Please check your internet connection and try again.')
     }
     
     throw error
@@ -163,6 +176,28 @@ export class ApiClient {
   }
 
   /**
+   * Get enhanced upload options with both signed URL and resumable upload
+   */
+  static async getUploadOptions(
+    filename: string,
+    fileSize?: number,
+    contentType?: string,
+    forceResumable = false
+  ): Promise<EnhancedSignedUrlResponse> {
+    const params = new URLSearchParams({
+      filename: filename,
+      ...(fileSize && { file_size: fileSize.toString() }),
+      ...(contentType && { content_type: contentType }),
+      ...(forceResumable && { resumable: 'true' })
+    })
+
+    const response: AxiosResponse<EnhancedSignedUrlResponse> = await api.get(
+      `/api/v1/signed-url?${params}`
+    )
+    return response.data
+  }
+
+  /**
    * Upload file directly to GCS using signed URL
    */
   static async uploadToSignedUrl(
@@ -183,6 +218,132 @@ export class ApiClient {
         }
       },
     })
+  }
+
+  /**
+   * Upload file using resumable upload for large files
+   */
+  static async uploadResumable(
+    resumableUrl: string,
+    file: File,
+    headers: Record<string, string>,
+    chunkSize = 8 * 1024 * 1024, // 8MB default
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<string> {
+    // Initiate resumable upload session
+    onProgress?.({ percent: 0, loaded: 0, total: file.size, stage: 'preparing' })
+    
+    const initResponse = await axios.post(resumableUrl, null, {
+      headers: {
+        ...headers,
+        'Content-Length': '0'
+      }
+    })
+
+    const sessionUrl = initResponse.headers['location']
+    if (!sessionUrl) {
+      throw new Error('Failed to get resumable upload session URL')
+    }
+
+    // Upload file in chunks
+    onProgress?.({ percent: 0, loaded: 0, total: file.size, stage: 'uploading' })
+    
+    const totalSize = file.size
+    let uploaded = 0
+
+    while (uploaded < totalSize) {
+      const chunk = file.slice(uploaded, Math.min(uploaded + chunkSize, totalSize))
+      const chunkEnd = uploaded + chunk.size - 1
+
+      await axios.put(sessionUrl, chunk, {
+        headers: {
+          'Content-Range': `bytes ${uploaded}-${chunkEnd}/${totalSize}`,
+          'Content-Type': file.type,
+        },
+        onUploadProgress: (progressEvent) => {
+          const chunkProgress = progressEvent.loaded
+          const totalProgress = uploaded + chunkProgress
+          const percentCompleted = Math.round((totalProgress * 100) / totalSize)
+          
+          onProgress?.({
+            percent: percentCompleted,
+            loaded: totalProgress,
+            total: totalSize,
+            stage: 'uploading'
+          })
+        },
+      })
+
+      uploaded += chunk.size
+    }
+
+    onProgress?.({ percent: 100, loaded: totalSize, total: totalSize, stage: 'completing' })
+    return sessionUrl
+  }
+
+  /**
+   * Smart file upload that automatically chooses the best upload method
+   */
+  static async uploadFileSmart(
+    file: File,
+    onProgress?: (progress: UploadProgress) => void
+  ): Promise<{ gcs_uri: string; filename: string }> {
+    try {
+      onProgress?.({ percent: 0, loaded: 0, total: file.size, stage: 'preparing' })
+
+      // Get upload options from backend
+      const uploadOptions = await this.getUploadOptions(
+        file.name,
+        file.size,
+        file.type
+      )
+
+      const useResumable = uploadOptions.recommended_method === 'resumable_upload' ||
+                          file.size >= 100 * 1024 * 1024 // 100MB threshold
+
+      if (useResumable && uploadOptions.upload_options.resumable_upload) {
+        // Use resumable upload for large files
+        const resumableInfo = uploadOptions.upload_options.resumable_upload
+        await this.uploadResumable(
+          resumableInfo.resumable_url,
+          file,
+          resumableInfo.headers,
+          resumableInfo.chunk_size,
+          onProgress
+        )
+      } else if (uploadOptions.upload_options.signed_url) {
+        // Use regular signed URL for smaller files
+        const signedUrlInfo = uploadOptions.upload_options.signed_url
+        await axios.put(signedUrlInfo.url, file, {
+          headers: signedUrlInfo.headers,
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              )
+              onProgress?.({
+                percent: percentCompleted,
+                loaded: progressEvent.loaded,
+                total: progressEvent.total,
+                stage: 'uploading'
+              })
+            }
+          },
+        })
+      } else {
+        throw new Error('No upload method available')
+      }
+
+      onProgress?.({ percent: 100, loaded: file.size, total: file.size, stage: 'completing' })
+
+      return {
+        gcs_uri: uploadOptions.gcs_uri,
+        filename: uploadOptions.filename
+      }
+    } catch (error: any) {
+      console.error('Smart upload error:', error)
+      throw new Error(error.response?.data?.detail || error.message || 'Upload failed')
+    }
   }
 
   /**

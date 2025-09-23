@@ -149,7 +149,8 @@ ai_projects = {
       sa-backend-dev = [
         "roles/storage.objectAdmin",
         "roles/speech.client",
-        "roles/aiplatform.user"
+        "roles/aiplatform.user",
+        "roles/iam.serviceAccountTokenCreator"
       ]
     }
   }

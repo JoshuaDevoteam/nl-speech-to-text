@@ -117,7 +117,8 @@ export default function FileUpload({
           
           <div className="text-xs text-gray-400 space-y-1">
             <p>Supported formats: MP3, MP4, WAV, M4A, FLAC, OGG, WEBM, MOV</p>
-            <p>Maximum file size: 5GB</p>
+            <p>Maximum file size: 5GB (large files use resumable upload)</p>
+            <p>Files over 100MB automatically use direct-to-cloud upload</p>
           </div>
         </div>
       </MotionDropzone>
@@ -155,7 +156,11 @@ export default function FileUpload({
           className="mt-2 p-3 bg-error-50 border border-error-200 rounded-lg"
         >
           <p className="text-sm text-error-600">
-            File type not supported or file is too large (max 5GB)
+            File type not supported or file is too large (max 5GB).
+          </p>
+          <p className="text-xs text-error-500 mt-1">
+            Supported: MP3, MP4, WAV, M4A, FLAC, OGG, WEBM, MOV files up to 5GB.
+            Large files will use resumable upload technology for reliable transfer.
           </p>
         </motion.div>
       )}

@@ -54,6 +54,12 @@ variable "buckets" {
   type = map(object({
     name   = string
     region = string
+    cors = optional(object({
+      origin          = list(string)
+      method          = list(string)
+      response_header = list(string)
+      max_age_seconds = number
+    }))
   }))
   description = "Defines the buckets to be built."
 }

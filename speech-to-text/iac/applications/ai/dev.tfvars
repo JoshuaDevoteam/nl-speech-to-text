@@ -35,6 +35,27 @@ buckets = {
   audio_uploads = {
     name = "pj-speech-text-dev-audio-uploads"
     region = "europe-west1"
+    cors = {
+      origin = [
+        "http://localhost:3000",
+        "http://localhost:3001", 
+        "https://speech-frontend-zkeanislmq-ew.a.run.app"
+      ]
+      method = [
+        "GET",
+        "POST", 
+        "PUT",
+        "OPTIONS"
+      ]
+      response_header = [
+        "Content-Type",
+        "Content-Length", 
+        "x-goog-resumable",
+        "x-goog-content-length-range",
+        "Authorization"
+      ]
+      max_age_seconds = 3600
+    }
   }
   transcripts = {
     name = "pj-speech-text-dev-transcripts"

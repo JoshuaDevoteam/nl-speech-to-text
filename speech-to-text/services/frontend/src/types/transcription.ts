@@ -128,3 +128,43 @@ export interface SignedUrlResponse {
   expires_in: number
   gcs_uri: string
 }
+
+export interface UploadMethod {
+  url: string
+  method: string
+  headers: Record<string, string>
+  recommended_for: string
+}
+
+export interface ResumableUploadMethod {
+  resumable_url: string
+  blob_name: string
+  bucket_name: string
+  content_type?: string
+  expiration: string
+  method: string
+  headers: Record<string, string>
+  recommended_for: string
+  chunk_size: number
+  supports_resume: boolean
+}
+
+export interface EnhancedSignedUrlResponse {
+  filename: string
+  gcs_uri: string
+  file_size?: number
+  content_type?: string
+  expires_in: number
+  upload_options: {
+    signed_url?: UploadMethod
+    resumable_upload?: ResumableUploadMethod
+  }
+  recommended_method: 'signed_url' | 'resumable_upload'
+}
+
+export interface UploadProgress {
+  percent: number
+  loaded: number
+  total?: number
+  stage?: 'preparing' | 'uploading' | 'completing'
+}

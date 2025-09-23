@@ -134,13 +134,15 @@ class StorageService:
     async def generate_signed_url(
         self,
         filename: str,
-        expiration_hours: Optional[int] = None
+        expiration_hours: Optional[int] = None,
+        method: str = "PUT"
     ) -> str:
         """Generate a signed URL for direct file upload.
         
         Args:
             filename: Name for the file in GCS
             expiration_hours: URL expiration time in hours
+            method: HTTP method for the signed URL
             
         Returns:
             Signed URL for upload
@@ -152,15 +154,159 @@ class StorageService:
         
         # Generate signed URL in executor
         loop = asyncio.get_event_loop()
-        signed_url = await loop.run_in_executor(
-            None,
-            blob.generate_signed_url,
-            version="v4",
-            expiration=timedelta(hours=expiration_hours),
+        
+        def _generate_signed_url():
+            try:
+                return blob.generate_signed_url(
+                    version="v4",
+                    expiration=timedelta(hours=expiration_hours),
+                    method=method
+                )
+            except AttributeError as e:
+                if "private key to sign credentials" in str(e):
+                    # Fallback: Try with service account email for impersonation
+                    return blob.generate_signed_url(
+                        version="v4",
+                        expiration=timedelta(hours=expiration_hours),
+                        method=method,
+                        service_account_email=f"sa-backend-dev@{self.settings.gcp_project_id}.iam.gserviceaccount.com"
+                    )
+                raise
+        
+        signed_url = await loop.run_in_executor(None, _generate_signed_url)
+        
+        return signed_url
+    
+    async def generate_resumable_upload_url(
+        self,
+        filename: str,
+        content_type: Optional[str] = None,
+        expiration_hours: Optional[int] = None
+    ) -> dict:
+        """Generate a resumable upload URL for large file uploads.
+        
+        Args:
+            filename: Name for the file in GCS
+            content_type: MIME type of the file
+            expiration_hours: URL expiration time in hours
+            
+        Returns:
+            Dictionary containing resumable upload URL and session info
+        """
+        if expiration_hours is None:
+            expiration_hours = self.settings.signed_url_expiration_hours
+        
+        blob = self.bucket.blob(filename)
+        if content_type:
+            blob.content_type = content_type
+        
+        # Generate resumable upload URL in executor
+        loop = asyncio.get_event_loop()
+        
+        def _create_resumable_session():
+            # Create a resumable upload session
+            expiration = datetime.utcnow() + timedelta(hours=expiration_hours)
+            
+            # Generate signed URL for resumable upload initiation
+            try:
+                signed_url = blob.generate_signed_url(
+                    version="v4",
+                    expiration=expiration,
+                    method="POST",
+                    headers={"x-goog-resumable": "start"}
+                )
+            except AttributeError as e:
+                if "private key to sign credentials" in str(e):
+                    # Fallback: Try with service account email for impersonation
+                    signed_url = blob.generate_signed_url(
+                        version="v4",
+                        expiration=expiration,
+                        method="POST",
+                        headers={"x-goog-resumable": "start"},
+                        service_account_email=f"sa-backend-dev@{self.settings.gcp_project_id}.iam.gserviceaccount.com"
+                    )
+                else:
+                    raise
+            
+            return {
+                "resumable_url": signed_url,
+                "blob_name": filename,
+                "bucket_name": self.bucket_name,
+                "content_type": content_type,
+                "expiration": expiration.isoformat(),
+                "method": "POST",
+                "headers": {
+                    "x-goog-resumable": "start",
+                    "Content-Type": content_type or "application/octet-stream"
+                }
+            }
+        
+        session_info = await loop.run_in_executor(None, _create_resumable_session)
+        return session_info
+    
+    async def generate_upload_options(
+        self,
+        filename: str,
+        file_size: Optional[int] = None,
+        content_type: Optional[str] = None,
+        expiration_hours: Optional[int] = None
+    ) -> dict:
+        """Generate upload options based on file size.
+        
+        Provides both regular signed URL and resumable upload URL options.
+        
+        Args:
+            filename: Name for the file in GCS
+            file_size: Size of the file in bytes
+            content_type: MIME type of the file
+            expiration_hours: URL expiration time in hours
+            
+        Returns:
+            Dictionary with upload options
+        """
+        # Threshold for resumable uploads (100MB)
+        resumable_threshold = 100 * 1024 * 1024
+        
+        options = {
+            "filename": filename,
+            "bucket_name": self.bucket_name,
+            "gcs_uri": f"gs://{self.bucket_name}/{filename}",
+            "file_size": file_size,
+            "content_type": content_type
+        }
+        
+        # Always provide regular signed URL for smaller uploads
+        regular_url = await self.generate_signed_url(
+            filename=filename,
+            expiration_hours=expiration_hours,
             method="PUT"
         )
         
-        return signed_url
+        options["signed_url"] = {
+            "url": regular_url,
+            "method": "PUT",
+            "headers": {
+                "Content-Type": content_type or "application/octet-stream"
+            },
+            "recommended_for": "files_under_100mb"
+        }
+        
+        # Provide resumable upload for larger files
+        if file_size is None or file_size >= resumable_threshold:
+            resumable_info = await self.generate_resumable_upload_url(
+                filename=filename,
+                content_type=content_type,
+                expiration_hours=expiration_hours
+            )
+            
+            options["resumable_upload"] = {
+                **resumable_info,
+                "recommended_for": "files_over_100mb",
+                "chunk_size": 8 * 1024 * 1024,  # 8MB chunks
+                "supports_resume": True
+            }
+        
+        return options
     
     async def save_transcript(self, transcript: str, job_id: str) -> str:
         """Save transcript to GCS.

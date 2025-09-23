@@ -6,7 +6,8 @@ import type {
   TranscriptionState,
   UploadResult,
   TranscriptionOptions,
-  WebSocketMessage
+  WebSocketMessage,
+  UploadProgress
 } from '@/types/transcription'
 import toast from 'react-hot-toast'
 
@@ -282,7 +283,7 @@ export function useTranscription() {
     }, 2000) // Poll every 2 seconds
   }, [fetchTranscriptionStatus])
 
-  // Upload file
+  // Upload file using smart upload (direct-to-GCS with resumable support)
   const uploadFile = useCallback(async (file: File): Promise<UploadResult> => {
     setIsUploading(true)
     setUploadProgress(0)
@@ -300,15 +301,27 @@ export function useTranscription() {
     startUploadTicker(file.size)
 
     try {
-      const result = await ApiClient.uploadFile(file, ({ percent, loaded, total }) => {
-        const totalBytes = total ?? file.size ?? undefined
+      // Use the new smart upload that bypasses Cloud Run's 32MB limit
+      const result = await ApiClient.uploadFileSmart(file, (progress: UploadProgress) => {
+        const { percent, loaded, total = file.size, stage } = progress
+        const totalBytes = total
         const clampedLoaded = totalBytes ? Math.min(loaded, totalBytes) : loaded
         const now = performance.now()
         const last = uploadLastEvent.current
 
+        // Show stage information in the UI
+        if (stage === 'preparing') {
+          // Show preparing stage for large files
+          toast.loading(`Preparing ${file.size >= 100 * 1024 * 1024 ? 'resumable ' : ''}upload...`, { id: 'upload-stage' })
+        } else if (stage === 'uploading') {
+          toast.dismiss('upload-stage')
+        } else if (stage === 'completing') {
+          toast.loading('Finalizing upload...', { id: 'upload-stage' })
+        }
+
         let smoothedSpeed = uploadSmoothedSpeed.current ?? null
 
-        if (last) {
+        if (last && stage === 'uploading') {
           const deltaBytes = Math.max(0, clampedLoaded - last.loaded)
           const deltaTimeSeconds = (now - last.timestamp) / 1000
 
@@ -322,7 +335,7 @@ export function useTranscription() {
           }
         }
 
-        if (!smoothedSpeed && uploadStartTime.current) {
+        if (!smoothedSpeed && uploadStartTime.current && stage === 'uploading') {
           const elapsedSeconds = (now - uploadStartTime.current) / 1000
           if (elapsedSeconds > 0.1 && clampedLoaded > 0) {
             smoothedSpeed = clampedLoaded / elapsedSeconds
@@ -331,16 +344,16 @@ export function useTranscription() {
         }
 
         uploadLastEvent.current = { loaded: clampedLoaded, timestamp: now }
-        uploadTotalBytesRef.current = totalBytes ?? uploadTotalBytesRef.current
+        uploadTotalBytesRef.current = totalBytes
         uploadLoadedRef.current = clampedLoaded
 
         const safePercent = Number.isFinite(percent)
           ? Math.min(100, Math.max(0, percent))
-          : totalBytes && totalBytes > 0
+          : totalBytes > 0
             ? Math.min(100, Math.max(0, (clampedLoaded / totalBytes) * 100))
             : 0
 
-        const cappedForDisplay = uploadCompletedRef.current
+        const cappedForDisplay = uploadCompletedRef.current || stage === 'completing'
           ? safePercent
           : Math.min(safePercent, 98)
 
@@ -348,7 +361,7 @@ export function useTranscription() {
 
         const elapsedSeconds = uploadStartTime.current ? (now - uploadStartTime.current) / 1000 : 0
 
-        if (smoothedSpeed && totalBytes) {
+        if (smoothedSpeed && totalBytes && stage === 'uploading') {
           const remainingSeconds = Math.max((totalBytes - clampedLoaded) / Math.max(smoothedSpeed, 1), 0)
           const proposedDuration = Math.max(elapsedSeconds + remainingSeconds, 60)
           const previous = uploadExpectedDuration.current ?? proposedDuration
@@ -365,50 +378,47 @@ export function useTranscription() {
         updateUploadUi()
       })
 
+      toast.dismiss('upload-stage')
       uploadCompletedRef.current = true
       uploadRawProgress.current = 100
       uploadLoadedRef.current = file.size
       uploadEtaRef.current = 0
       updateUploadUi()
 
-      if (result.success) {
-        if (result.data.size) {
-          setCurrentFileSizeBytes(result.data.size)
+      // Convert to the expected UploadResult format
+      const uploadResult: UploadResult = {
+        success: true,
+        data: {
+          gcs_uri: result.gcs_uri,
+          filename: result.filename,
+          original_filename: file.name,
+          size: file.size,
+          content_type: file.type
         }
-        toast.success('File uploaded successfully!')
-        setTimeout(() => {
-          stopUploadTicker()
-          setIsUploading(false)
-          setUploadProgress(0)
-          setUploadStats(null)
-          uploadTotalBytesRef.current = undefined
-          uploadExpectedDuration.current = null
-          uploadEtaRef.current = null
-          uploadDisplayedProgress.current = 0
-          uploadRawProgress.current = 0
-          uploadLoadedRef.current = 0
-        }, 750)
-      } else {
+      }
+
+      setCurrentFileSizeBytes(file.size)
+      toast.success('File uploaded successfully!')
+      setTimeout(() => {
         stopUploadTicker()
         setIsUploading(false)
         setUploadProgress(0)
         setUploadStats(null)
-        setCurrentFileSizeBytes(undefined)
-        uploadCompletedRef.current = true
         uploadTotalBytesRef.current = undefined
         uploadExpectedDuration.current = null
         uploadEtaRef.current = null
         uploadDisplayedProgress.current = 0
         uploadRawProgress.current = 0
         uploadLoadedRef.current = 0
-      }
+      }, 750)
 
       uploadStartTime.current = null
       uploadLastEvent.current = null
       uploadSmoothedSpeed.current = null
 
-      return result
+      return uploadResult
     } catch (error) {
+      toast.dismiss('upload-stage')
       stopUploadTicker()
       setIsUploading(false)
       setUploadProgress(0)
@@ -424,7 +434,12 @@ export function useTranscription() {
       uploadRawProgress.current = 0
       uploadLoadedRef.current = 0
       uploadCompletedRef.current = true
-      throw error
+      
+      // Return error result instead of throwing to match expected interface
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Upload failed'
+      }
     }
   }, [estimateUploadDuration, startUploadTicker, stopUploadTicker, updateUploadUi])
 

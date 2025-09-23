@@ -83,54 +83,42 @@ async def upload_file(
     Returns:
         Upload response with GCS URI and file metadata
     """
+    # This endpoint is now limited to small uploads (e.g., testing) and will
+    # reject large files. Production uploads should use the signed-URL flow.
+    max_inline_size = 25 * 1024 * 1024  # 25 MB safety limit
+
     try:
-        print(f"DEBUG: Received file upload - {file.filename}, size: {getattr(file, 'size', 'unknown')}, type: {file.content_type}")
-        
-        # Validate file type
-        allowed_extensions = ['.mp3', '.mp4', '.wav', '.m4a', '.flac', '.ogg', '.webm', '.mov']
-        file_extension = os.path.splitext(file.filename)[1].lower()
-        
-        print(f"DEBUG: File extension: {file_extension}")
-        
-        if file_extension not in allowed_extensions:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File type {file_extension} not supported. Allowed types: {allowed_extensions}"
-            )
-        
-        # Determine file size safely using underlying spooled file
         file.file.seek(0, os.SEEK_END)
         file_size = file.file.tell()
         file.file.seek(0)
+    except Exception:
+        file_size = None
 
-        max_file_size = settings.get_max_file_size_bytes()
-        print(f"DEBUG: File size resolved to {file_size} bytes")
+    if file_size and file_size > max_inline_size:
+        raise HTTPException(
+            status_code=413,
+            detail="Inline uploads are limited to 25MB. Please use the direct upload flow."
+        )
 
-        if file_size > max_file_size:
-            max_gb = settings.max_file_size_mb / 1024
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"File too large. Maximum size is {max_gb:.0f}GB "
-                    f"({settings.max_file_size_mb}MB)."
-                )
+    if file_size and file_size > settings.get_max_file_size_bytes():
+        max_gb = settings.max_file_size_mb / 1024
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File too large. Maximum size is {max_gb:.0f}GB "
+                f"({settings.max_file_size_mb}MB)."
             )
+        )
 
-        # Generate unique filename
+    try:
+        contents = await file.read()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}_{file.filename}"
-
-        print(f"DEBUG: Generated filename: {unique_filename}")
-        print(f"DEBUG: About to upload to GCS...")
-
-        # Upload to GCS without loading entire file into memory
-        gcs_uri = await storage_service.upload_file_stream(
-            file_obj=file.file,
+        gcs_uri = await storage_service.upload_file(
+            file_content=contents,
             filename=unique_filename,
             content_type=file.content_type
         )
-
-        print(f"DEBUG: Upload successful, GCS URI: {gcs_uri}")
 
         return UploadResponse(
             gcs_uri=gcs_uri,
@@ -139,11 +127,7 @@ async def upload_file(
             size=file_size,
             content_type=file.content_type
         )
-        
     except Exception as e:
-        print(f"ERROR: Upload failed - {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -417,32 +401,106 @@ async def notify_websocket(job_id: str, data: Dict[str, Any]):
 
 
 @app.get("/api/v1/signed-url")
-async def get_signed_upload_url(filename: str):
+async def get_signed_upload_url(
+    filename: str,
+    file_size: Optional[int] = None,
+    content_type: Optional[str] = None,
+    resumable: bool = False
+):
     """
-    Get a signed URL for direct file upload to GCS.
+    Get signed URL(s) for direct file upload to GCS.
+    
+    Supports both regular signed URLs and resumable upload sessions for large files.
     
     Args:
         filename: Name of the file to upload
+        file_size: Size of the file in bytes (optional, used for upload method selection)
+        content_type: MIME type of the file (optional)
+        resumable: Force resumable upload regardless of file size
         
     Returns:
-        Signed URL and related metadata
+        Upload options including signed URLs and resumable upload info
     """
     try:
         # Generate unique filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_filename = f"{timestamp}_{uuid.uuid4().hex[:8]}_{filename}"
         
-        # Get signed URL
-        signed_url = await storage_service.generate_signed_url(unique_filename)
+        print(f"DEBUG: Generating upload options - filename: {unique_filename}, size: {file_size}, type: {content_type}, resumable: {resumable}")
         
-        return {
-            "signed_url": signed_url,
+        # Validate file type if provided
+        if filename:
+            allowed_extensions = ['.mp3', '.mp4', '.wav', '.m4a', '.flac', '.ogg', '.webm', '.mov']
+            file_extension = os.path.splitext(filename)[1].lower()
+            
+            if file_extension not in allowed_extensions:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File type {file_extension} not supported. Allowed types: {allowed_extensions}"
+                )
+        
+        # Check file size limits
+        if file_size and file_size > settings.get_max_file_size_bytes():
+            max_gb = settings.max_file_size_mb / 1024
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"File too large. Maximum size is {max_gb:.0f}GB "
+                    f"({settings.max_file_size_mb}MB)."
+                )
+            )
+        
+        # Get upload options from storage service
+        upload_options = await storage_service.generate_upload_options(
+            filename=unique_filename,
+            file_size=file_size,
+            content_type=content_type,
+            expiration_hours=settings.signed_url_expiration_hours
+        )
+        
+        # If resumable is forced, only return resumable option
+        if resumable and "resumable_upload" in upload_options:
+            return {
+                "resumable_upload": upload_options["resumable_upload"],
+                "filename": unique_filename,
+                "gcs_uri": upload_options["gcs_uri"],
+                "upload_method": "resumable"
+            }
+        
+        # Return comprehensive upload options
+        response = {
             "filename": unique_filename,
-            "expires_in": 3600,  # 1 hour
-            "gcs_uri": f"gs://{settings.gcs_bucket_name}/{unique_filename}"
+            "gcs_uri": upload_options["gcs_uri"],
+            "file_size": file_size,
+            "content_type": content_type,
+            "expires_in": settings.signed_url_expiration_hours * 3600,
+            "upload_options": {}
         }
         
+        # Add signed URL option
+        if "signed_url" in upload_options:
+            response["upload_options"]["signed_url"] = upload_options["signed_url"]
+        
+        # Add resumable upload option if available
+        if "resumable_upload" in upload_options:
+            response["upload_options"]["resumable_upload"] = upload_options["resumable_upload"]
+        
+        # Recommend best upload method based on file size
+        if file_size:
+            if file_size < 100 * 1024 * 1024:  # < 100MB
+                response["recommended_method"] = "signed_url"
+            else:
+                response["recommended_method"] = "resumable_upload"
+        else:
+            response["recommended_method"] = "resumable_upload"  # Default for unknown size
+        
+        print(f"DEBUG: Generated upload options successfully")
+        return response
+        
     except Exception as e:
+        print(f"ERROR: Failed to generate upload options - {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

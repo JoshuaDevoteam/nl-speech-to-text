@@ -21,6 +21,7 @@ module "buckets" {
   bucket_storage_class        = "STANDARD"
   bucket_force_destroy        = false
   bucket_uniform_level_access = true
+  cors                        = each.value.cors
 }
 
 module "cloud_build" {
