@@ -39,7 +39,8 @@ buckets = {
       origin = [
         "http://localhost:3000",
         "http://localhost:3001", 
-        "https://speech-frontend-zkeanislmq-ew.a.run.app"
+        "https://speech-frontend-zkeanislmq-ew.a.run.app",
+        "https://speech-frontend-275052050630.europe-west1.run.app"
       ]
       method = [
         "GET",

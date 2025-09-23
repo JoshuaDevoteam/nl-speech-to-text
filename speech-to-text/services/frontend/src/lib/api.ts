@@ -235,8 +235,7 @@ export class ApiClient {
     
     const initResponse = await axios.post(resumableUrl, null, {
       headers: {
-        ...headers,
-        'Content-Length': '0'
+        ...headers
       }
     })
 
