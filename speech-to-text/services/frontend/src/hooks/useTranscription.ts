@@ -219,7 +219,8 @@ export function useTranscription() {
       transcriptSegments: data.data?.transcript_segments || data.data?.segments_preview || prev.transcriptSegments,
       speakerIdentifiedTranscript: data.data?.speaker_identified_transcript || prev.speakerIdentifiedTranscript,
       speakerIdentificationSummary: data.data?.speaker_identification_summary || prev.speakerIdentificationSummary,
-      refinedTranscript: data.data?.refined_transcript ?? prev.refinedTranscript
+      refinedTranscript: data.data?.refined_transcript ?? prev.refinedTranscript,
+      fileName: prev.fileName ?? currentFileNameRef.current
     }))
 
     // Handle completion
@@ -256,7 +257,8 @@ export function useTranscription() {
         createdAt: status.created_at,
         startedAt: status.started_at,
         completedAt: status.completed_at,
-        gcsUri: status.gcs_uri
+        gcsUri: status.gcs_uri,
+        fileName: prev.fileName ?? currentFileNameRef.current
       }))
 
       // Stop polling if completed or failed
@@ -400,6 +402,10 @@ export function useTranscription() {
       }
 
       setCurrentFileSizeBytes(file.size)
+      setTranscriptionState(prev => ({
+        ...prev,
+        fileName: file.name
+      }))
       toast.success('File uploaded successfully!')
       setTimeout(() => {
         stopUploadTicker()
@@ -451,14 +457,16 @@ export function useTranscription() {
     options: TranscriptionOptions = {}
   ) => {
     setIsTranscribing(true)
-    setTranscriptionState({
+    setTranscriptionState(prev => ({
+      ...prev,
       status: 'pending',
       progress: 0,
       gcsUri,
-      fileSizeBytes: currentFileSizeBytes,
+      fileSizeBytes: currentFileSizeBytes ?? prev.fileSizeBytes,
       transcriptSegments: undefined,
-      refinedTranscript: undefined
-    })
+      refinedTranscript: undefined,
+      fileName: prev.fileName ?? currentFileNameRef.current
+    }))
 
     try {
       const request = {
@@ -481,7 +489,8 @@ export function useTranscription() {
         status: response.status as any,
         message: response.message,
         createdAt: new Date().toISOString(),
-        fileSizeBytes: currentFileSizeBytes ?? prev.fileSizeBytes
+        fileSizeBytes: currentFileSizeBytes ?? prev.fileSizeBytes,
+        fileName: prev.fileName ?? currentFileNameRef.current
       }))
 
       // Set up WebSocket connection for real-time updates
@@ -609,6 +618,7 @@ export function useTranscription() {
     stopUploadTicker()
     // Reset state
     setTranscriptionState({})
+    currentFileNameRef.current = undefined
     setUploadProgress(0)
     setUploadStats(null)
     setIsUploading(false)

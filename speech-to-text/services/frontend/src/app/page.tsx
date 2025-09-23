@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import Link from 'next/link'
 import { CloudArrowUpIcon, SpeakerWaveIcon, DocumentTextIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import FileUpload from '@/components/FileUpload'
 import ProgressBar from '@/components/ProgressBar'
@@ -429,6 +430,22 @@ export default function HomePage() {
           </div>
         )}
       </div>
+      <footer className="mt-24 border-t border-gray-100 bg-white">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-10 text-center text-sm text-gray-500 sm:flex-row sm:justify-center sm:gap-6">
+          <span className="font-medium text-gray-700">Made by Joshua Vink © 2025</span>
+          <nav className="flex flex-wrap items-center justify-center gap-4">
+            <Link href="/privacy-policy" className="transition-colors hover:text-primary-600">
+              Privacy Policy
+            </Link>
+            <Link href="/terms-of-service" className="transition-colors hover:text-primary-600">
+              Terms of Service
+            </Link>
+            <Link href="/support" className="transition-colors hover:text-primary-600">
+              Support
+            </Link>
+          </nav>
+        </div>
+      </footer>
     </div>
   )
 }

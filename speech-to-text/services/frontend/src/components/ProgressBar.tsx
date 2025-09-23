@@ -66,8 +66,12 @@ export default function ProgressBar({
   }
 
   const getStatusMessage = () => {
+    if (status === 'completed') {
+      return 'Transcription completed successfully!'
+    }
+
     if (message) return message
-    
+
     switch (status) {
       case 'pending':
         return 'Preparing transcription...'
@@ -77,10 +81,6 @@ export default function ProgressBar({
         return 'Processing file...'
       case 'transcribing':
         return 'Transcribing speech...'
-      case 'completed':
-        return transcriptionState?.fileName 
-          ? `Transcription completed successfully: ${transcriptionState.fileName}!`
-          : 'Transcription completed successfully!'
       case 'failed':
         return 'Transcription failed. Please try again.'
       default:
@@ -91,6 +91,7 @@ export default function ProgressBar({
   const isCompleted = status === 'completed'
   const isFailed = status === 'failed'
   const isProcessing = status && ['processing', 'extracting_audio', 'transcribing'].includes(status)
+  const completionFileName = isCompleted ? transcriptionState?.fileName?.trim() : undefined
 
   const formatBytes = (bytes?: number) => {
     if (!bytes || Number.isNaN(bytes)) return null
@@ -173,6 +174,11 @@ export default function ProgressBar({
               {currentProgress}%
             </span>
           </div>
+          {completionFileName && (
+            <p className="mt-1 text-xs text-gray-400 truncate" title={completionFileName}>
+              {completionFileName}
+            </p>
+          )}
           {((etaSeconds != null && etaSeconds > 0) || (speedBytesPerSecond != null && speedBytesPerSecond > 0)) && (
             <p className="mt-1 text-xs text-gray-400">
               {etaSeconds != null && etaSeconds > 0 ? `~${formatDuration(etaSeconds)} remaining` : null}
