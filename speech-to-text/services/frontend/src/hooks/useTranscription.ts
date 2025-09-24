@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ApiClient, WebSocketClient } from '@/lib/api'
-import { loadJSON, removeStoredItem, saveJSON } from '@/lib/storage'
+import { loadJSON, removeStoredItem, saveJSON, loadSession, saveSession, removeSessionItem } from '@/lib/storage'
 import type {
   TranscriptionState,
   UploadResult,
@@ -12,18 +12,66 @@ import type {
 } from '@/types/transcription'
 import toast from 'react-hot-toast'
 
-const SESSION_KEY = 'transcription_session_v1'
-const SESSION_TTL_MS = 48 * 60 * 60 * 1000 // 48 hours
+const JOB_STORAGE_PREFIX = 'transcription_job_v1'
+const ACTIVE_JOB_STORAGE_KEY = 'active_job_key_v1'
+const JOBS_VERSION = 1
+const JOB_SESSION_TTL_MS = 48 * 60 * 60 * 1000 // 48 hours
 
-type StoredTranscriptionSession = {
-  version: number
+type StoredEtaSnapshot = {
+  remainingSeconds: number | null
   savedAt: number
+  progressHint?: number | null
+  stage?: TranscriptionState['status']
+  expectedSeconds?: number | null
+  stageStartTimestampMs?: number | null
+}
+
+type StoredJob = {
+  version: number
+  jobKey: string
+  jobId?: string
+  createdAt: number
+  updatedAt: number
   transcriptionState: TranscriptionState
   isTranscribing: boolean
   isUploading: boolean
   currentFileSizeBytes?: number
   currentFileName?: string
+  etaSnapshot?: StoredEtaSnapshot | null
 }
+
+const buildJobStorageKey = (jobKey: string) => `${JOB_STORAGE_PREFIX}:${jobKey}`
+
+const loadJobFromStorage = (jobKey: string): StoredJob | null => {
+  if (typeof window === 'undefined') return null
+  const stored = loadJSON<StoredJob>(buildJobStorageKey(jobKey))
+  if (!stored || stored.version !== JOBS_VERSION) {
+    removeStoredItem(buildJobStorageKey(jobKey))
+    return null
+  }
+
+  if (Date.now() - stored.updatedAt > JOB_SESSION_TTL_MS) {
+    removeStoredItem(buildJobStorageKey(jobKey))
+    return null
+  }
+
+  return stored
+}
+
+const saveJobToStorage = (jobKey: string, job: StoredJob) => {
+  if (typeof window === 'undefined') return
+  saveJSON(buildJobStorageKey(jobKey), job)
+}
+
+const removeJobFromStorage = (jobKey: string | null) => {
+  if (!jobKey || typeof window === 'undefined') return
+  removeStoredItem(buildJobStorageKey(jobKey))
+}
+
+const createRandomJobKey = (prefix = 'job'): string => {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
 
 export function useTranscription() {
   const [transcriptionState, setTranscriptionState] = useState<TranscriptionState>({})
@@ -60,8 +108,134 @@ export function useTranscription() {
   const transcriptionLastStatus = useRef<string | undefined>(undefined)
   const transcriptionEtaTimer = useRef<NodeJS.Timeout | null>(null)
   const transcriptionProgressRef = useRef<number | undefined>(undefined)
-  const sessionSaveTimer = useRef<number | null>(null)
-  const lastSessionSave = useRef<number>(0)
+  const jobPersistTimerRef = useRef<number | null>(null)
+  const lastPersistSaveRef = useRef<number>(0)
+  const currentJobKeyRef = useRef<string | null>(null)
+  const jobCreatedAtRef = useRef<number | null>(null)
+  const activeJobKeyRef = useRef<string | null>(null)
+  const [activeJobKey, setActiveJobKey] = useState<string | null>(null)
+
+  const updateActiveJob = useCallback((jobKey: string | null) => {
+    activeJobKeyRef.current = jobKey
+    setActiveJobKey(jobKey)
+    if (typeof window === 'undefined') return
+    if (jobKey) {
+      saveSession(ACTIVE_JOB_STORAGE_KEY, jobKey)
+    } else {
+      removeSessionItem(ACTIVE_JOB_STORAGE_KEY)
+    }
+  }, [])
+
+  const ensureJobKey = useCallback((fileName?: string, fileSize?: number) => {
+    if (currentJobKeyRef.current) {
+      return currentJobKeyRef.current
+    }
+
+    const newKey = createRandomJobKey('pending')
+    const createdAt = Date.now()
+    currentJobKeyRef.current = newKey
+    jobCreatedAtRef.current = createdAt
+    updateActiveJob(newKey)
+
+    if (typeof window !== 'undefined') {
+      const initialJob: StoredJob = {
+        version: JOBS_VERSION,
+        jobKey: newKey,
+        createdAt,
+        updatedAt: createdAt,
+        transcriptionState: {},
+        isTranscribing: false,
+        isUploading: true,
+        currentFileName: fileName,
+        currentFileSizeBytes: fileSize,
+        etaSnapshot: null,
+      }
+      saveJobToStorage(newKey, initialJob)
+    }
+
+    return newKey
+  }, [updateActiveJob])
+
+
+  const removeJobEntry = useCallback((jobKey: string | null) => {
+    removeJobFromStorage(jobKey)
+  }, [])
+
+  const renameJobKey = useCallback((newJobId: string) => {
+    const oldKey = currentJobKeyRef.current
+    if (!newJobId || !oldKey || oldKey === newJobId) {
+      if (newJobId) {
+        currentJobKeyRef.current = newJobId
+        updateActiveJob(newJobId)
+      }
+      return
+    }
+
+    if (typeof window === 'undefined') {
+      currentJobKeyRef.current = newJobId
+      updateActiveJob(newJobId)
+      return
+    }
+
+    const existing = loadJobFromStorage(oldKey)
+
+    if (!existing) {
+      currentJobKeyRef.current = newJobId
+      jobCreatedAtRef.current = Date.now()
+      updateActiveJob(newJobId)
+      return
+    }
+
+    removeJobFromStorage(oldKey)
+
+    const renamed: StoredJob = {
+      ...existing,
+      jobKey: newJobId,
+      jobId: newJobId,
+      updatedAt: Date.now(),
+      version: JOBS_VERSION,
+    }
+
+    saveJobToStorage(newJobId, renamed)
+
+    currentJobKeyRef.current = newJobId
+    jobCreatedAtRef.current = renamed.createdAt
+    updateActiveJob(newJobId)
+  }, [updateActiveJob])
+
+  const buildCurrentJobSnapshot = useCallback((): StoredJob | null => {
+    const jobKey = currentJobKeyRef.current
+    if (!jobKey) return null
+
+    const now = Date.now()
+    const createdAt = jobCreatedAtRef.current ?? now
+    jobCreatedAtRef.current = createdAt
+
+    const sanitizedState = JSON.parse(JSON.stringify(transcriptionState ?? {})) as TranscriptionState
+
+    const snapshot: StoredJob = {
+      version: JOBS_VERSION,
+      jobKey,
+      jobId: sanitizedState.jobId,
+      createdAt,
+      updatedAt: now,
+      transcriptionState: sanitizedState,
+      isTranscribing,
+      isUploading,
+      currentFileSizeBytes,
+      currentFileName: currentFileNameRef.current,
+      etaSnapshot: {
+        remainingSeconds: transcriptionEta ?? null,
+        savedAt: now,
+        progressHint: transcriptionProgressHint ?? null,
+        stage: transcriptionState.status,
+        expectedSeconds: transcriptionStageExpected.current ?? null,
+        stageStartTimestampMs: transcriptionStageStart.current ?? null,
+      },
+    }
+
+    return snapshot
+  }, [transcriptionState, isTranscribing, isUploading, currentFileSizeBytes, transcriptionEta, transcriptionProgressHint])
 
   const estimateUploadDuration = useCallback((sizeBytes?: number) => {
     if (!sizeBytes) return null
@@ -325,43 +499,66 @@ export function useTranscription() {
     startPolling(jobId)
   }, [handleWebSocketMessage, startPolling])
 
+  const hydrateStoredJob = useCallback((job: StoredJob) => {
+    currentJobKeyRef.current = job.jobKey
+    jobCreatedAtRef.current = job.createdAt
+    updateActiveJob(job.jobKey)
+
+    if (transcriptionEtaTimer.current) {
+      clearInterval(transcriptionEtaTimer.current)
+      transcriptionEtaTimer.current = null
+    }
+
+    transcriptionStageStart.current = job.etaSnapshot?.stageStartTimestampMs ?? null
+    transcriptionStageExpected.current = job.etaSnapshot?.expectedSeconds ?? null
+    transcriptionLastStatus.current = job.etaSnapshot?.stage ?? job.transcriptionState.status
+    transcriptionProgressRef.current = job.transcriptionState.progress ?? undefined
+
+    if (job.etaSnapshot) {
+      const elapsed = Math.max(0, (Date.now() - job.etaSnapshot.savedAt) / 1000)
+      const remaining = job.etaSnapshot.remainingSeconds != null
+        ? Math.max(job.etaSnapshot.remainingSeconds - elapsed, 0)
+        : null
+      setTranscriptionEta(remaining)
+      setTranscriptionProgressHint(job.etaSnapshot.progressHint ?? null)
+    } else {
+      setTranscriptionEta(null)
+      setTranscriptionProgressHint(null)
+    }
+
+    setTranscriptionState(job.transcriptionState || {})
+    const status = job.transcriptionState.status
+    const isActive = !!status && !['completed', 'failed'].includes(status)
+    setIsTranscribing(isActive)
+    setIsUploading(false)
+    setUploadProgress(0)
+    setUploadStats(null)
+    setCurrentFileSizeBytes(job.currentFileSizeBytes)
+    currentFileNameRef.current = job.currentFileName
+  }, [updateActiveJob])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const stored = loadJSON<StoredTranscriptionSession>(SESSION_KEY)
-    if (!stored) return
+    const storedKey = loadSession<string>(ACTIVE_JOB_STORAGE_KEY)
+    if (!storedKey) return
 
-    if (stored.version !== 1) {
-      removeStoredItem(SESSION_KEY)
+    const storedJob = loadJobFromStorage(storedKey)
+    if (!storedJob) {
+      removeSessionItem(ACTIVE_JOB_STORAGE_KEY)
       return
     }
 
-    if (stored.savedAt && Date.now() - stored.savedAt > SESSION_TTL_MS) {
-      removeStoredItem(SESSION_KEY)
-      return
-    }
+    hydrateStoredJob(storedJob)
 
-    const restoredState = stored.transcriptionState || {}
-    setTranscriptionState(restoredState)
-    setIsUploading(false)
-
-    const status = restoredState.status
-    const isActive = !!status && !['completed', 'failed'].includes(status)
-    setIsTranscribing(isActive)
-
-    setUploadProgress(0)
-    setUploadStats(null)
-    setCurrentFileSizeBytes(stored.currentFileSizeBytes)
-    currentFileNameRef.current = restoredState.fileName ?? stored.currentFileName ?? undefined
-
-    const jobId = restoredState.jobId
-    if (jobId) {
-      fetchTranscriptionStatus(jobId)
-      if (isActive) {
-        attachRealtimeListeners(jobId)
+    if (storedJob.jobId) {
+      fetchTranscriptionStatus(storedJob.jobId)
+      const status = storedJob.transcriptionState.status
+      if (status && !['completed', 'failed'].includes(status)) {
+        attachRealtimeListeners(storedJob.jobId)
       }
     }
-  }, [attachRealtimeListeners, fetchTranscriptionStatus])
+  }, [hydrateStoredJob, attachRealtimeListeners, fetchTranscriptionStatus])
 
   // Upload file using smart upload (direct-to-GCS with resumable support)
   const uploadFile = useCallback(async (file: File): Promise<UploadResult> => {
@@ -370,6 +567,7 @@ export function useTranscription() {
     setUploadStats({ loaded: 0, total: file.size })
     setCurrentFileSizeBytes(file.size)
     currentFileNameRef.current = file.name
+    ensureJobKey(file.name, file.size)
 
     const start = performance.now()
     uploadStartTime.current = start
@@ -530,57 +728,41 @@ export function useTranscription() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-
-    const shouldPersist = Boolean(
-      transcriptionState.jobId ||
-      transcriptionState.status ||
-      transcriptionState.transcript ||
-      transcriptionState.gcsUri
-    )
-
-    if (!shouldPersist && !isTranscribing && !isUploading) {
-      removeStoredItem(SESSION_KEY)
-      return
-    }
+    const jobKey = currentJobKeyRef.current
+    if (!jobKey) return
 
     const now = Date.now()
     const MIN_INTERVAL = 1000
-    const elapsed = now - lastSessionSave.current
+    const elapsed = now - lastPersistSaveRef.current
     const delay = elapsed >= MIN_INTERVAL ? 0 : MIN_INTERVAL - elapsed
 
-    if (sessionSaveTimer.current) {
-      window.clearTimeout(sessionSaveTimer.current)
+    if (jobPersistTimerRef.current) {
+      window.clearTimeout(jobPersistTimerRef.current)
     }
 
-    sessionSaveTimer.current = window.setTimeout(() => {
-      const snapshot: StoredTranscriptionSession = {
-        version: 1,
-        savedAt: Date.now(),
-        transcriptionState: { ...transcriptionState },
-        isTranscribing,
-        isUploading,
-        currentFileSizeBytes,
-        currentFileName: currentFileNameRef.current
+    jobPersistTimerRef.current = window.setTimeout(() => {
+      const snapshot = buildCurrentJobSnapshot()
+      if (snapshot) {
+        saveJobToStorage(jobKey, snapshot)
+        lastPersistSaveRef.current = Date.now()
       }
-
-      saveJSON(SESSION_KEY, snapshot)
-      lastSessionSave.current = Date.now()
-      sessionSaveTimer.current = null
+      jobPersistTimerRef.current = null
     }, delay)
 
     return () => {
-      if (sessionSaveTimer.current) {
-        window.clearTimeout(sessionSaveTimer.current)
-        sessionSaveTimer.current = null
+      if (jobPersistTimerRef.current) {
+        window.clearTimeout(jobPersistTimerRef.current)
+        jobPersistTimerRef.current = null
       }
     }
-  }, [transcriptionState, isTranscribing, isUploading, currentFileSizeBytes])
+  }, [buildCurrentJobSnapshot, activeJobKey])
 
   // Start transcription
   const startTranscription = useCallback(async (
     gcsUri: string, 
     options: TranscriptionOptions = {}
   ) => {
+    ensureJobKey(currentFileNameRef.current, currentFileSizeBytes)
     setIsTranscribing(true)
     setTranscriptionState(prev => ({
       ...prev,
@@ -607,6 +789,7 @@ export function useTranscription() {
       }
 
       const response = await ApiClient.startTranscription(request)
+      renameJobKey(response.job_id)
       
       setTranscriptionState(prev => ({
         ...prev,
@@ -724,6 +907,16 @@ export function useTranscription() {
     }
 
     stopUploadTicker()
+    removeJobEntry(currentJobKeyRef.current)
+    updateActiveJob(null)
+    currentJobKeyRef.current = null
+    jobCreatedAtRef.current = null
+
+    if (jobPersistTimerRef.current) {
+      window.clearTimeout(jobPersistTimerRef.current)
+      jobPersistTimerRef.current = null
+    }
+
     // Reset state
     setTranscriptionState({})
     currentFileNameRef.current = undefined
@@ -752,12 +945,7 @@ export function useTranscription() {
       clearInterval(transcriptionEtaTimer.current)
       transcriptionEtaTimer.current = null
     }
-    if (sessionSaveTimer.current) {
-      window.clearTimeout(sessionSaveTimer.current)
-      sessionSaveTimer.current = null
-    }
-    removeStoredItem(SESSION_KEY)
-  }, [stopUploadTicker])
+  }, [removeJobEntry, stopUploadTicker, updateActiveJob])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -772,9 +960,9 @@ export function useTranscription() {
       if (transcriptionEtaTimer.current) {
         clearInterval(transcriptionEtaTimer.current)
       }
-      if (sessionSaveTimer.current) {
-        window.clearTimeout(sessionSaveTimer.current)
-        sessionSaveTimer.current = null
+      if (jobPersistTimerRef.current) {
+        window.clearTimeout(jobPersistTimerRef.current)
+        jobPersistTimerRef.current = null
       }
     }
   }, [stopUploadTicker])
