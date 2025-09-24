@@ -400,11 +400,16 @@ export function useTranscription() {
   const handleWebSocketMessage = useCallback((data: WebSocketMessage) => {
     console.log('WebSocket message:', data)
     
+    const incomingMessage = data.message ?? null
+    const normalizedMessage = incomingMessage && !incomingMessage.toLowerCase().includes('connected to transcription updates')
+      ? incomingMessage
+      : undefined
+
     setTranscriptionState(prev => ({
       ...prev,
       status: data.status as any,
       progress: data.progress || prev.progress,
-      message: data.message,
+      message: normalizedMessage ?? prev.message,
       transcript: data.data?.transcript || prev.transcript,
       transcriptSegments: data.data?.transcript_segments || data.data?.segments_preview || prev.transcriptSegments,
       speakerIdentifiedTranscript: data.data?.speaker_identified_transcript || prev.speakerIdentifiedTranscript,
@@ -826,34 +831,48 @@ export function useTranscription() {
       setTranscriptionProgressHint(null)
     }
 
-    const expectedSeconds = getEstimatedStageDuration(status)
+    const heuristicExpected = getEstimatedStageDuration(status)
+    const storedExpected = transcriptionStageExpected.current
+    const storedStage = transcriptionLastStatus.current
+    const stageStart = transcriptionStageStart.current
 
-    if (status && expectedSeconds) {
+    let effectiveExpected = heuristicExpected ?? null
+    if (storedExpected != null && stageStart != null && storedStage === status) {
+      effectiveExpected = storedExpected
+    }
 
-      if (transcriptionStageStart.current === null || transcriptionLastStatus.current !== status) {
-        transcriptionStageStart.current = Date.now()
-        transcriptionStageExpected.current = expectedSeconds
-        setTranscriptionEta(expectedSeconds)
+    if (status && effectiveExpected != null) {
+      const stageChanged = storedStage !== status
+
+      if (stageChanged || stageStart == null) {
+        const newStart = stageChanged ? Date.now() : (stageStart ?? Date.now())
+        transcriptionStageStart.current = newStart
+        transcriptionStageExpected.current = effectiveExpected
         setTranscriptionProgressHint(null)
-        if (transcriptionEtaTimer.current) {
-          clearInterval(transcriptionEtaTimer.current)
-          transcriptionEtaTimer.current = null
+      } else {
+        transcriptionStageExpected.current = effectiveExpected
+      }
+
+      const recomputeEta = () => {
+        if (!transcriptionStageStart.current || !transcriptionStageExpected.current) return
+        const elapsed = Math.max(0, (Date.now() - transcriptionStageStart.current) / 1000)
+        const remaining = Math.max(transcriptionStageExpected.current - elapsed, 0)
+        setTranscriptionEta(remaining)
+
+        if (transcriptionProgressRef.current == null && transcriptionStageExpected.current > 0) {
+          const pseudoProgress = Math.min((elapsed / transcriptionStageExpected.current) * 100, 99)
+          setTranscriptionProgressHint(pseudoProgress)
         }
       }
 
-      if (!transcriptionEtaTimer.current) {
-        transcriptionEtaTimer.current = setInterval(() => {
-          if (!transcriptionStageStart.current || !transcriptionStageExpected.current) return
-          const elapsed = (Date.now() - transcriptionStageStart.current) / 1000
-          const remaining = Math.max(transcriptionStageExpected.current - elapsed, 0)
-          setTranscriptionEta(remaining)
+      recomputeEta()
 
-          if (transcriptionProgressRef.current == null) {
-            const pseudoProgress = Math.min((elapsed / transcriptionStageExpected.current) * 100, 99)
-            setTranscriptionProgressHint(pseudoProgress)
-          }
-        }, 1000)
+      if (transcriptionEtaTimer.current) {
+        clearInterval(transcriptionEtaTimer.current)
+        transcriptionEtaTimer.current = null
       }
+
+      transcriptionEtaTimer.current = setInterval(recomputeEta, 1000)
     } else {
       transcriptionStageStart.current = null
       transcriptionStageExpected.current = null
