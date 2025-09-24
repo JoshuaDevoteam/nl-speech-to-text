@@ -46,7 +46,9 @@ export default function TranscriptionResult({
 
   const baseTranscript = transcript || ''
   const hasRefinedTranscript = !!refinedTranscript && refinedTranscript.trim() && refinedTranscript.trim() !== baseTranscript.trim()
-  const [transcriptView, setTranscriptView] = useState<'original' | 'refined'>('original')
+  const [transcriptView, setTranscriptView] = useState<'original' | 'refined'>(() =>
+    hasRefinedTranscript ? 'refined' : 'original'
+  )
   const segments = transcriptSegments || []
   useEffect(() => {
     if (!hasRefinedTranscript) {

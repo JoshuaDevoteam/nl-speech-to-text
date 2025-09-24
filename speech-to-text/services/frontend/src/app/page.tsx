@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { CloudArrowUpIcon, SpeakerWaveIcon, DocumentTextIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import FileUpload from '@/components/FileUpload'
@@ -9,6 +9,7 @@ import TranscriptionResult from '@/components/TranscriptionResult'
 import { useTranscription } from '@/hooks/useTranscription'
 import type { TranscriptionOptions } from '@/types/transcription'
 import toast from 'react-hot-toast'
+import { loadJSON, removeStoredItem, saveJSON } from '@/lib/storage'
 
 const DEFAULT_OPTIONS: TranscriptionOptions = {
   extract_audio: false,
@@ -16,6 +17,19 @@ const DEFAULT_OPTIONS: TranscriptionOptions = {
   enable_speaker_identification: true,
   min_speaker_count: 2,
   max_speaker_count: 6,
+}
+
+const STORAGE_KEYS = {
+  pendingTranscription: 'pending_transcription_v1',
+  transcriptionOptions: 'transcription_options_v1'
+}
+
+type PendingTranscriptionState = {
+  gcsUri: string
+  fileName: string
+  fileSize?: number
+  contentType?: string
+  extractAudio: boolean
 }
 
 export default function HomePage() {
@@ -58,15 +72,30 @@ export default function HomePage() {
   } = useTranscription()
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
-  const [pendingTranscription, setPendingTranscription] = useState<{
-    gcsUri: string
-    fileName: string
-    fileSize?: number
-    contentType?: string
-    extractAudio: boolean
-  } | null>(null)
+  const [pendingTranscription, setPendingTranscription] = useState<PendingTranscriptionState | null>(() => {
+    if (typeof window === 'undefined') return null
+    return loadJSON<PendingTranscriptionState>(STORAGE_KEYS.pendingTranscription)
+  })
   const [autoStartError, setAutoStartError] = useState<string | null>(null)
-  const [transcriptionOptions, setTranscriptionOptions] = useState<TranscriptionOptions>({ ...DEFAULT_OPTIONS })
+  const [transcriptionOptions, setTranscriptionOptions] = useState<TranscriptionOptions>(() => {
+    if (typeof window === 'undefined') return { ...DEFAULT_OPTIONS }
+    const stored = loadJSON<Partial<TranscriptionOptions>>(STORAGE_KEYS.transcriptionOptions)
+    return { ...DEFAULT_OPTIONS, ...(stored || {}) }
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!pendingTranscription) {
+      removeStoredItem(STORAGE_KEYS.pendingTranscription)
+      return
+    }
+    saveJSON(STORAGE_KEYS.pendingTranscription, pendingTranscription)
+  }, [pendingTranscription])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    saveJSON(STORAGE_KEYS.transcriptionOptions, transcriptionOptions)
+  }, [transcriptionOptions])
 
   const pendingFileSizeLabel = pendingTranscription?.fileSize != null
     ? formatBytes(pendingTranscription.fileSize)

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ApiClient, WebSocketClient } from '@/lib/api'
+import { loadJSON, removeStoredItem, saveJSON } from '@/lib/storage'
 import type {
   TranscriptionState,
   UploadResult,
@@ -10,6 +11,19 @@ import type {
   UploadProgress
 } from '@/types/transcription'
 import toast from 'react-hot-toast'
+
+const SESSION_KEY = 'transcription_session_v1'
+const SESSION_TTL_MS = 48 * 60 * 60 * 1000 // 48 hours
+
+type StoredTranscriptionSession = {
+  version: number
+  savedAt: number
+  transcriptionState: TranscriptionState
+  isTranscribing: boolean
+  isUploading: boolean
+  currentFileSizeBytes?: number
+  currentFileName?: string
+}
 
 export function useTranscription() {
   const [transcriptionState, setTranscriptionState] = useState<TranscriptionState>({})
@@ -46,6 +60,8 @@ export function useTranscription() {
   const transcriptionLastStatus = useRef<string | undefined>(undefined)
   const transcriptionEtaTimer = useRef<NodeJS.Timeout | null>(null)
   const transcriptionProgressRef = useRef<number | undefined>(undefined)
+  const sessionSaveTimer = useRef<number | null>(null)
+  const lastSessionSave = useRef<number>(0)
 
   const estimateUploadDuration = useCallback((sizeBytes?: number) => {
     if (!sizeBytes) return null
@@ -286,6 +302,67 @@ export function useTranscription() {
     }, 2000) // Poll every 2 seconds
   }, [fetchTranscriptionStatus])
 
+  const attachRealtimeListeners = useCallback((jobId: string) => {
+    if (!jobId) return
+
+    if (wsClient.current) {
+      wsClient.current.disconnect()
+    }
+
+    wsClient.current = new WebSocketClient(
+      jobId,
+      handleWebSocketMessage,
+      (error) => {
+        console.error('WebSocket error:', error)
+        startPolling(jobId)
+      },
+      () => {
+        console.log('WebSocket connection closed')
+      }
+    )
+
+    wsClient.current.connect()
+    startPolling(jobId)
+  }, [handleWebSocketMessage, startPolling])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const stored = loadJSON<StoredTranscriptionSession>(SESSION_KEY)
+    if (!stored) return
+
+    if (stored.version !== 1) {
+      removeStoredItem(SESSION_KEY)
+      return
+    }
+
+    if (stored.savedAt && Date.now() - stored.savedAt > SESSION_TTL_MS) {
+      removeStoredItem(SESSION_KEY)
+      return
+    }
+
+    const restoredState = stored.transcriptionState || {}
+    setTranscriptionState(restoredState)
+    setIsUploading(false)
+
+    const status = restoredState.status
+    const isActive = !!status && !['completed', 'failed'].includes(status)
+    setIsTranscribing(isActive)
+
+    setUploadProgress(0)
+    setUploadStats(null)
+    setCurrentFileSizeBytes(stored.currentFileSizeBytes)
+    currentFileNameRef.current = restoredState.fileName ?? stored.currentFileName ?? undefined
+
+    const jobId = restoredState.jobId
+    if (jobId) {
+      fetchTranscriptionStatus(jobId)
+      if (isActive) {
+        attachRealtimeListeners(jobId)
+      }
+    }
+  }, [attachRealtimeListeners, fetchTranscriptionStatus])
+
   // Upload file using smart upload (direct-to-GCS with resumable support)
   const uploadFile = useCallback(async (file: File): Promise<UploadResult> => {
     setIsUploading(true)
@@ -451,6 +528,54 @@ export function useTranscription() {
     }
   }, [estimateUploadDuration, startUploadTicker, stopUploadTicker, updateUploadUi])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const shouldPersist = Boolean(
+      transcriptionState.jobId ||
+      transcriptionState.status ||
+      transcriptionState.transcript ||
+      transcriptionState.gcsUri
+    )
+
+    if (!shouldPersist && !isTranscribing && !isUploading) {
+      removeStoredItem(SESSION_KEY)
+      return
+    }
+
+    const now = Date.now()
+    const MIN_INTERVAL = 1000
+    const elapsed = now - lastSessionSave.current
+    const delay = elapsed >= MIN_INTERVAL ? 0 : MIN_INTERVAL - elapsed
+
+    if (sessionSaveTimer.current) {
+      window.clearTimeout(sessionSaveTimer.current)
+    }
+
+    sessionSaveTimer.current = window.setTimeout(() => {
+      const snapshot: StoredTranscriptionSession = {
+        version: 1,
+        savedAt: Date.now(),
+        transcriptionState: { ...transcriptionState },
+        isTranscribing,
+        isUploading,
+        currentFileSizeBytes,
+        currentFileName: currentFileNameRef.current
+      }
+
+      saveJSON(SESSION_KEY, snapshot)
+      lastSessionSave.current = Date.now()
+      sessionSaveTimer.current = null
+    }, delay)
+
+    return () => {
+      if (sessionSaveTimer.current) {
+        window.clearTimeout(sessionSaveTimer.current)
+        sessionSaveTimer.current = null
+      }
+    }
+  }, [transcriptionState, isTranscribing, isUploading, currentFileSizeBytes])
+
   // Start transcription
   const startTranscription = useCallback(async (
     gcsUri: string, 
@@ -493,24 +618,7 @@ export function useTranscription() {
         fileName: prev.fileName ?? currentFileNameRef.current
       }))
 
-      // Set up WebSocket connection for real-time updates
-      wsClient.current = new WebSocketClient(
-        response.job_id,
-        handleWebSocketMessage,
-        (error) => {
-          console.error('WebSocket error:', error)
-          // Fall back to polling if WebSocket fails
-          startPolling(response.job_id)
-        },
-        () => {
-          console.log('WebSocket connection closed')
-        }
-      )
-
-      wsClient.current.connect()
-
-      // Start polling as fallback
-      startPolling(response.job_id)
+      attachRealtimeListeners(response.job_id)
 
       toast.success('Transcription started!')
     } catch (error: any) {
@@ -523,7 +631,7 @@ export function useTranscription() {
       toast.error('Failed to start transcription')
       throw error
     }
-  }, [handleWebSocketMessage, startPolling, currentFileSizeBytes])
+  }, [attachRealtimeListeners, currentFileSizeBytes])
 
   // Heuristic ETA for transcription stages when backend progress is limited
   useEffect(() => {
@@ -644,6 +752,11 @@ export function useTranscription() {
       clearInterval(transcriptionEtaTimer.current)
       transcriptionEtaTimer.current = null
     }
+    if (sessionSaveTimer.current) {
+      window.clearTimeout(sessionSaveTimer.current)
+      sessionSaveTimer.current = null
+    }
+    removeStoredItem(SESSION_KEY)
   }, [stopUploadTicker])
 
   // Cleanup on unmount
@@ -658,6 +771,10 @@ export function useTranscription() {
       stopUploadTicker()
       if (transcriptionEtaTimer.current) {
         clearInterval(transcriptionEtaTimer.current)
+      }
+      if (sessionSaveTimer.current) {
+        window.clearTimeout(sessionSaveTimer.current)
+        sessionSaveTimer.current = null
       }
     }
   }, [stopUploadTicker])
