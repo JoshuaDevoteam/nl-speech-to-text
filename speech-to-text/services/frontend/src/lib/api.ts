@@ -254,10 +254,15 @@ export class ApiClient {
       const chunk = file.slice(uploaded, Math.min(uploaded + chunkSize, totalSize))
       const chunkEnd = uploaded + chunk.size - 1
 
-      await axios.put(sessionUrl, chunk, {
+      const response = await axios.put(sessionUrl, chunk, {
         headers: {
           'Content-Range': `bytes ${uploaded}-${chunkEnd}/${totalSize}`,
           'Content-Type': file.type,
+        },
+        // GCS returns 308 for intermediate chunks; treat that as success
+        validateStatus: (status) => {
+          if (!status) return false
+          return (status >= 200 && status < 300) || status === 308
         },
         onUploadProgress: (progressEvent) => {
           const chunkProgress = progressEvent.loaded
@@ -273,7 +278,21 @@ export class ApiClient {
         },
       })
 
-      uploaded += chunk.size
+      if (response.status === 308) {
+        const range = response.headers['range'] || response.headers['Range']
+        if (range) {
+          const match = /bytes=0-(\d+)/.exec(range)
+          if (match) {
+            uploaded = parseInt(match[1], 10) + 1
+          } else {
+            uploaded += chunk.size
+          }
+        } else {
+          uploaded += chunk.size
+        }
+      } else {
+        uploaded = Math.min(totalSize, uploaded + chunk.size)
+      }
     }
 
     onProgress?.({ percent: 100, loaded: totalSize, total: totalSize, stage: 'completing' })
