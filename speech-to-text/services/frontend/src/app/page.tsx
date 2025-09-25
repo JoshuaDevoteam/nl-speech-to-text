@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { CloudArrowUpIcon, SpeakerWaveIcon, DocumentTextIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
+import { CloudArrowUpIcon, SpeakerWaveIcon, DocumentTextIcon, Cog6ToothIcon, EnvelopeIcon, GlobeAltIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import FileUpload from '@/components/FileUpload'
 import ProgressBar from '@/components/ProgressBar'
 import TranscriptionResult from '@/components/TranscriptionResult'
@@ -184,9 +184,27 @@ export default function HomePage() {
       icon: SpeakerWaveIcon,
     },
     {
-      name: 'Dutch Transcription',
-      description: 'High-quality Dutch speech transcription using Google Cloud AI.',
+      name: 'AI-Powered Transcription',
+      description: 'High-quality speech transcription using advanced Google Cloud AI.',
       icon: DocumentTextIcon,
+    },
+  ]
+
+  const comingSoonFeatures = [
+    {
+      name: 'Email Notifications',
+      description: 'Get notified by email when your transcription is complete',
+      icon: EnvelopeIcon,
+    },
+    {
+      name: 'More Languages',
+      description: 'Additional language support coming soon',
+      icon: GlobeAltIcon,
+    },
+    {
+      name: 'Enhanced AI',
+      description: 'Improved accuracy with next-generation models',
+      icon: SparklesIcon,
     },
   ]
 
@@ -198,10 +216,10 @@ export default function HomePage() {
         {/* Hero section */}
         <div className="text-center">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
-            Dutch Speech to Text
+            DevoTranscribe
           </h1>
           <p className="mt-6 text-lg leading-8 text-gray-600">
-            Upload your audio or video files and get accurate Dutch transcriptions 
+            Upload your audio or video files and get accurate transcriptions 
             in minutes using advanced AI technology.
           </p>
         </div>
@@ -426,6 +444,43 @@ export default function HomePage() {
                       <feature.icon className="h-6 w-6 text-primary-600" aria-hidden="true" />
                     </div>
                     <h3 className="mt-6 text-lg font-medium text-gray-900">
+                      {feature.name}
+                    </h3>
+                    <p className="mt-2 text-base text-gray-500">
+                      {feature.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Coming Soon Features */}
+        {!transcriptionState.jobId && !isUploading && !isTranscribing && (
+          <div className="mt-16">
+            <div className="mx-auto max-w-5xl">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                  Coming Soon
+                </h2>
+                <p className="mt-4 text-lg leading-8 text-gray-600">
+                  Exciting new features we're working on to make DevoTranscribe even better.
+                </p>
+              </div>
+
+              <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {comingSoonFeatures.map((feature) => (
+                  <div key={feature.name} className="relative card text-center bg-gradient-to-br from-gray-50 to-gray-100 border-dashed border-2 border-gray-300">
+                    <div className="absolute top-3 right-3">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                        Soon
+                      </span>
+                    </div>
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-200">
+                      <feature.icon className="h-6 w-6 text-gray-500" aria-hidden="true" />
+                    </div>
+                    <h3 className="mt-6 text-lg font-medium text-gray-700">
                       {feature.name}
                     </h3>
                     <p className="mt-2 text-base text-gray-500">
