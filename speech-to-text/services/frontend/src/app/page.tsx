@@ -493,26 +493,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Supported formats */}
-        {!transcriptionState.jobId && !isUploading && !isTranscribing && (
-          <div className="mt-16">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Supported File Formats
-              </h3>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['MP3', 'MP4', 'WAV', 'M4A', 'FLAC', 'OGG', 'WEBM', 'MOV'].map((format) => (
-                  <span 
-                    key={format}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"
-                  >
-                    {format}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       <footer className="mt-24 border-t border-gray-100 bg-white">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-10 text-center text-sm text-gray-500 sm:flex-row sm:justify-center sm:gap-6">

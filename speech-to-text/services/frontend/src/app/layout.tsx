@@ -53,9 +53,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
                       <Image
                         src="/devotranscribe.png"
                         alt="DevoTranscribe Logo"
-                        width={40}
+                        width={120}
                         height={40}
-                        className="h-10 w-10"
+                        className="h-10 w-auto object-contain"
                       />
                     </div>
                     <div>
